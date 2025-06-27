@@ -1,15 +1,15 @@
+// server.js
 const express = require('express');
-const cors = require('cors'); // 👉 Ajouter ceci
+const cors = require('cors');
+require('dotenv').config();
+
+const authRoutes = require('./routes/auth');
 
 const app = express();
-const PORT = 5000;
+app.use(cors());
+app.use(express.json());
 
-app.use(cors()); // 👉 Autoriser les requêtes Cross-Origin
+app.use('/api', authRoutes);
 
-app.get('/', (req, res) => {
-  res.send('✅ Serveur Node.js fonctionne !');
-});
-
-app.listen(PORT, () => {
-  console.log(`🚀 Serveur en écoute sur http://localhost:${PORT}`);
-});
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Serveur en écoute sur http://localhost:${PORT}`));
