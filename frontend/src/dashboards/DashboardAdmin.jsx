@@ -1,11 +1,12 @@
 import React from 'react';
+import UserList from '../components/UserList';
 
 function DashboardAdmin({ onLogout }) {
   return (
     <div>
-      <h2>Bienvenue Admin 👑</h2>
-      <p>Gérez les rôles, accès et les utilisateurs.</p>
-      <button onClick={onLogout}>Se déconnecter</button>
+      <h1>Dashboard Admin</h1>
+      <button onClick={onLogout}>Déconnexion</button>
+      <UserList />
     </div>
   );
 }
