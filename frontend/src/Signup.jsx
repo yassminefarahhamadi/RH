@@ -19,7 +19,7 @@ function Signup() {
   const handleSubmit = async e => {
     e.preventDefault();
     try {
-      const res = await axios.post('http://localhost:5000/api/signup', formData);
+      const res = await axios.post('http://localhost:5000/api/auth/signup', formData);
       setMessage('✅ Inscription réussie ! Vous pouvez vous connecter.');
     } catch (err) {
       setMessage(err.response?.data?.message || 'Erreur inscription');
