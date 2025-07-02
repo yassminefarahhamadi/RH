@@ -5,19 +5,27 @@ const DashboardEtudiant = ({ onLogout }) => {
   const id = localStorage.getItem('id');
   const name = localStorage.getItem('name');
   const [demandes, setDemandes] = useState([]);
-  const [dossiers, setDossiers] = useState([]);
+  const [dossier, setDossier] = useState(null);
   const [newTitle, setNewTitle] = useState('');
   const [niveauEtude, setNiveauEtude] = useState('baccalaureat');
   const [files, setFiles] = useState({});
   const [message, setMessage] = useState('');
   const [editMode, setEditMode] = useState(false);
-  const [currentDossierId, setCurrentDossierId] = useState(null);
+
+  const attestationTypes = [
+    "Attestation de présence",
+    "Relevé de notes",
+    "Attestation de scolarité",
+    "Attestation d'inscription",
+    "Attestation de réussite"
+  ];
 
   const fetchDocuments = useCallback(async () => {
     try {
       const res = await axios.get(`http://localhost:5000/api/documents/${id}`);
       setDemandes(res.data.filter(doc => doc.title !== 'Dossier physique'));
-      setDossiers(res.data.filter(doc => doc.title === 'Dossier physique'));
+      const physDossier = res.data.find(doc => doc.title === 'Dossier physique');
+      setDossier(physDossier || null);
     } catch (err) {
       console.error(err);
       setMessage('❌ Erreur de récupération');
@@ -36,8 +44,12 @@ const DashboardEtudiant = ({ onLogout }) => {
   const handleSimpleSubmit = async (e) => {
     e.preventDefault();
     
-    if (demandes.some(d => d.title === newTitle)) {
-      setMessage('⚠️ Vous avez déjà fait cette demande');
+    const existingRequest = demandes.find(d => 
+      d.title === newTitle && d.statut !== 'refusé'
+    );
+
+    if (existingRequest) {
+      setMessage('⚠️ Vous avez déjà une demande en cours pour ce type d\'attestation');
       return;
     }
 
@@ -52,6 +64,17 @@ const DashboardEtudiant = ({ onLogout }) => {
     } catch (err) {
       console.error(err);
       setMessage('❌ Erreur lors de la demande');
+    }
+  };
+
+  const cancelDemand = async (demandId) => {
+    try {
+      await axios.delete(`http://localhost:5000/api/documents/${demandId}`);
+      setMessage('✅ Demande annulée');
+      fetchDocuments();
+    } catch (err) {
+      console.error(err);
+      setMessage('❌ Erreur lors de l\'annulation');
     }
   };
 
@@ -71,36 +94,25 @@ const DashboardEtudiant = ({ onLogout }) => {
     });
 
     try {
-      if (editMode && currentDossierId) {
-        await axios.put(`http://localhost:5000/api/documents/${currentDossierId}`, formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          }
+      if (editMode && dossier) {
+        await axios.put(`http://localhost:5000/api/documents/${dossier.id}`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
         });
         setMessage('✅ Dossier mis à jour');
       } else {
         await axios.post('http://localhost:5000/api/documents/dossier', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          }
+          headers: { 'Content-Type': 'multipart/form-data' }
         });
         setMessage('✅ Dossier envoyé');
       }
       
       setFiles({});
       setEditMode(false);
-      setCurrentDossierId(null);
       fetchDocuments();
     } catch (err) {
       console.error(err);
       setMessage('❌ Erreur lors de l\'envoi');
     }
-  };
-
-  const handleEditDossier = (dossier) => {
-    setEditMode(true);
-    setCurrentDossierId(dossier.id);
-    setNiveauEtude(dossier.niveau_etude || 'baccalaureat');
   };
 
   const formatDate = (dateString) => {
@@ -112,51 +124,31 @@ const DashboardEtudiant = ({ onLogout }) => {
 
   const renderFileLinks = (doc) => (
     <div style={styles.documentFiles}>
-      {doc.carte_identite && (
-        <a href={`http://localhost:5000/uploads/${doc.carte_identite}`} 
-           target="_blank" 
-           rel="noreferrer"
-           style={styles.fileLink}>
-          🆔 Carte ID
-        </a>
-      )}
-      {doc.diplome && (
-        <a href={`http://localhost:5000/uploads/${doc.diplome}`} 
-           target="_blank" 
-           rel="noreferrer"
-           style={styles.fileLink}>
-          🎓 Diplôme
-        </a>
-      )}
-      {doc.releve_notes && (
-        <a href={`http://localhost:5000/uploads/${doc.releve_notes}`} 
-           target="_blank" 
-           rel="noreferrer"
-           style={styles.fileLink}>
-          📊 Relevé
-        </a>
-      )}
-      {doc.doc_sante && (
-        <a href={`http://localhost:5000/uploads/${doc.doc_sante}`} 
-           target="_blank" 
-           rel="noreferrer"
-           style={styles.fileLink}>
-          🏥 Santé
-        </a>
-      )}
+      {doc.carte_identite && <a href={`http://localhost:5000/uploads/${doc.carte_identite}`} target="_blank" style={styles.fileLink}> Carte ID</a>}
+      {doc.diplome && <a href={`http://localhost:5000/uploads/${doc.diplome}`} target="_blank" style={styles.fileLink}> Diplôme</a>}
+      {doc.releve_notes && <a href={`http://localhost:5000/uploads/${doc.releve_notes}`} target="_blank" style={styles.fileLink}> Relevé</a>}
+      {doc.doc_sante && <a href={`http://localhost:5000/uploads/${doc.doc_sante}`} target="_blank" style={styles.fileLink}> Santé</a>}
     </div>
   );
+
+  const canRequestAttestation = (type) => {
+    return !demandes.some(d => d.title === type && d.statut !== 'refusé');
+  };
 
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <div style={styles.headerContent}>
-          <h2 style={styles.welcomeTitle}>Bonjour, <span style={styles.nameHighlight}>{name}</span></h2>
-          <button style={styles.logoutButton} onClick={onLogout}>
-            <span style={styles.logoutIcon}>🚪</span> Déconnexion
-          </button>
-        </div>
-        <div style={styles.headerWave}></div>
+      <div style={styles.headerContent}>
+  <div style={styles.logoAndWelcome}>
+    <img src="/logo.png" alt="Logo" style={styles.logo} />
+    <h2 style={styles.welcomeTitle}>
+      Bonjour, <span style={styles.nameHighlight}>{name}</span>
+    </h2>
+  </div>
+  <button style={styles.logoutButton} onClick={onLogout}>Déconnexion</button>
+</div>
+
+
       </div>
 
       <div style={styles.content}>
@@ -170,15 +162,16 @@ const DashboardEtudiant = ({ onLogout }) => {
           </div>
         )}
 
-        <div style={styles.cardContainer}>
+        <div style={styles.horizontalCardContainer}>
+          {/* Carte des demandes d'attestation avec scroll */}
           <div style={styles.card}>
             <div style={styles.cardHeader}>
-              <h3 style={styles.cardTitle}>📋 Vos Demandes Simples</h3>
+              <h3 style={styles.cardTitle}>📋 Demandes d'Attestation</h3>
               <div style={styles.cardCount}>{demandes.length}</div>
             </div>
-            <div style={styles.cardBody}>
+            <div style={{...styles.cardBody, overflowY: 'auto', maxHeight: '400px'}}>
               {demandes.length === 0 ? (
-                <p style={styles.emptyMessage}>Aucune demande simple</p>
+                <p style={styles.emptyMessage}>Aucune demande</p>
               ) : (
                 <ul style={styles.documentList}>
                   {demandes.map((doc) => (
@@ -188,54 +181,22 @@ const DashboardEtudiant = ({ onLogout }) => {
                         <span style={{
                           ...styles.documentStatus,
                           ...(doc.statut === 'en_attente' ? styles.statusPending : {}),
-                          ...(doc.statut === 'approuvé' ? styles.statusApproved : {})
+                          ...(doc.statut === 'approuvé' ? styles.statusApproved : {}),
+                          ...(doc.statut === 'refusé' ? styles.statusRejected : {})
                         }}>
                           {doc.statut}
                         </span>
                       </div>
                       <div style={styles.documentMeta}>
                         <span style={styles.documentDate}>{formatDate(doc.date_demande)}</span>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-
-          <div style={styles.card}>
-            <div style={styles.cardHeader}>
-              <h3 style={styles.cardTitle}>📁 Vos Dossiers Physiques</h3>
-              <div style={styles.cardCount}>{dossiers.length}</div>
-            </div>
-            <div style={styles.cardBody}>
-              {dossiers.length === 0 ? (
-                <p style={styles.emptyMessage}>Aucun dossier physique</p>
-              ) : (
-                <ul style={styles.documentList}>
-                  {dossiers.map((doc) => (
-                    <li key={doc.id} style={styles.documentItem}>
-                      <div style={styles.documentHeader}>
-                        <span style={styles.documentTitle}>{doc.title} ({doc.niveau_etude})</span>
-                        <div>
-                          <span style={{
-                            ...styles.documentStatus,
-                            ...(doc.statut === 'en_attente' ? styles.statusPending : {}),
-                            ...(doc.statut === 'approuvé' ? styles.statusApproved : {})
-                          }}>
-                            {doc.statut}
-                          </span>
+                        {doc.statut === 'en_attente' && (
                           <button 
-                            onClick={() => handleEditDossier(doc)}
-                            style={styles.editButton}
+                            onClick={() => cancelDemand(doc.id)}
+                            style={styles.cancelButton}
                           >
-                            ✏️ Modifier
+                            Annuler
                           </button>
-                        </div>
-                      </div>
-                      <div style={styles.documentMeta}>
-                        <span style={styles.documentDate}>{formatDate(doc.date_demande)}</span>
-                        {renderFileLinks(doc)}
+                        )}
                       </div>
                     </li>
                   ))}
@@ -244,14 +205,15 @@ const DashboardEtudiant = ({ onLogout }) => {
             </div>
           </div>
 
+          {/* Carte de création de nouvelle demande */}
           <div style={styles.card}>
             <div style={styles.cardHeader}>
-              <h3 style={styles.cardTitle}>✏️ Nouvelle Demande Simple</h3>
+              <h3 style={styles.cardTitle}>✏️ Nouvelle Demande</h3>
             </div>
             <div style={styles.cardBody}>
               <form onSubmit={handleSimpleSubmit} style={styles.form}>
                 <div style={styles.formGroup}>
-                  <label style={styles.formLabel}>Type de document</label>
+                  <label style={styles.formLabel}>Type d'attestation</label>
                   <select 
                     style={styles.formSelect}
                     value={newTitle} 
@@ -259,112 +221,156 @@ const DashboardEtudiant = ({ onLogout }) => {
                     required
                   >
                     <option value="">-- Sélectionnez --</option>
-                    <option value="Attestation de présence">Attestation de présence</option>
-                    <option value="Relevé de notes">Relevé de notes</option>
-                    <option value="Attestation de scolarité">Attestation de scolarité</option>
+                    {attestationTypes.map(type => (
+                      <option key={type} value={type} disabled={!canRequestAttestation(type)}>
+                        {type} {!canRequestAttestation(type) && "(Déjà demandé)"}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <button 
                   style={styles.submitButton} 
                   type="submit"
-                  disabled={demandes.some(d => d.title === newTitle)}
+                  disabled={!canRequestAttestation(newTitle)}
                 >
-                  {demandes.some(d => d.title === newTitle) ? 'Déjà envoyée' : 'Envoyer la demande'}
+                  Envoyer
                 </button>
               </form>
             </div>
           </div>
 
-          <div style={{...styles.card, ...styles.importantCard}}>
-            <div style={{...styles.cardHeader, ...styles.importantCardHeader}}>
-              <h3 style={styles.cardTitle}>
-                {editMode ? '✏️ Modifier Dossier' : '📦 Nouveau Dossier Physique'}
-              </h3>
+          {/* Carte du dossier physique */}
+          <div style={styles.card}>
+            <div style={styles.cardHeader}>
+              <h3 style={styles.cardTitle}>📁 Dossier Physique</h3>
+              <div style={styles.cardCount}>{dossier ? 1 : 0}</div>
             </div>
             <div style={styles.cardBody}>
-              <form onSubmit={handleDossierSubmit} encType="multipart/form-data" style={styles.form}>
-                <div style={styles.formGroup}>
-                  <label style={styles.formLabel}>Niveau d'étude</label>
-                  <select 
-                    style={styles.formSelect}
-                    value={niveauEtude} 
-                    onChange={(e) => setNiveauEtude(e.target.value)}
-                    required
-                  >
-                    <option value="baccalaureat">Baccalauréat</option>
-                    <option value="licence">Licence</option>
-                    <option value="master">Master</option>
-                  </select>
-                </div>
+              {dossier ? (
+                <div>
+                  <div style={styles.documentItem}>
+                    <div style={styles.documentHeader}>
+                      <span style={styles.documentTitle}>Dossier ({dossier.niveau_etude})</span>
+                      <span style={{
+                        ...styles.documentStatus,
+                        ...(dossier.statut === 'en_attente' ? styles.statusPending : {}),
+                        ...(dossier.statut === 'approuvé' ? styles.statusApproved : {})
+                      }}>
+                        {dossier.statut}
+                      </span>
+                    </div>
+                    <div style={styles.documentMeta}>
+                      <span style={styles.documentDate}>{formatDate(dossier.date_demande)}</span>
+                      <button 
+                        onClick={() => {
+                          setEditMode(true);
+                          setNiveauEtude(dossier.niveau_etude);
+                        }}
+                        style={styles.editButton}
+                      >
+                        Modifier
+                      </button>
+                    </div>
+                    {renderFileLinks(dossier)}
+                  </div>
 
-                <div style={styles.fileUploadGroup}>
-                  <label style={styles.fileUploadLabel}>
-                    <input 
-                      type="file" 
-                      name="carte_identite" 
-                      onChange={handleFileChange} 
-                      required={!editMode}
-                      style={styles.fileInput}
-                    />
-                    <span style={styles.fileUploadButton}>📷 Carte d'identité</span>
-                  </label>
-                  
-                  <label style={styles.fileUploadLabel}>
-                    <input 
-                      type="file" 
-                      name="diplome" 
-                      onChange={handleFileChange} 
-                      required={!editMode}
-                      style={styles.fileInput}
-                    />
-                    <span style={styles.fileUploadButton}>🎓 Diplôme</span>
-                  </label>
-                  
-                  <label style={styles.fileUploadLabel}>
-                    <input 
-                      type="file" 
-                      name="releve_notes" 
-                      onChange={handleFileChange} 
-                      required={!editMode}
-                      style={styles.fileInput}
-                    />
-                    <span style={styles.fileUploadButton}>📊 Relevé de notes</span>
-                  </label>
-                  
-                  <label style={styles.fileUploadLabel}>
-                    <input 
-                      type="file" 
-                      name="doc_sante" 
-                      onChange={handleFileChange} 
-                      required={!editMode}
-                      style={styles.fileInput}
-                    />
-                    <span style={styles.fileUploadButton}>🏥 Certificat médical</span>
-                  </label>
-                </div>
-
-                <div style={styles.formActions}>
-                  <button 
-                    style={{...styles.submitButton, ...styles.importantButton}} 
-                    type="submit"
-                  >
-                    {editMode ? 'Mettre à jour' : 'Envoyer le dossier'}
-                  </button>
                   {editMode && (
-                    <button 
-                      style={styles.cancelButton}
-                      type="button"
-                      onClick={() => {
-                        setEditMode(false);
-                        setCurrentDossierId(null);
-                        setFiles({});
-                      }}
-                    >
-                      Annuler
-                    </button>
+                    <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #eee' }}>
+                      <h4 style={{ margin: '0 0 15px 0', fontSize: '16px' }}>Modifier le dossier</h4>
+                      <form onSubmit={handleDossierSubmit} encType="multipart/form-data" style={styles.form}>
+                        <div style={styles.formGroup}>
+                          <label style={styles.formLabel}>Niveau d'étude</label>
+                          <select 
+                            style={styles.formSelect}
+                            value={niveauEtude} 
+                            onChange={(e) => setNiveauEtude(e.target.value)}
+                            required
+                          >
+                            <option value="baccalaureat">Baccalauréat</option>
+                            <option value="licence">Licence</option>
+                            <option value="master">Master</option>
+                          </select>
+                        </div>
+
+                        <div style={styles.fileUploadGroup}>
+                          {['carte_identite', 'diplome', 'releve_notes', 'doc_sante'].map((field) => (
+                            <label key={field} style={styles.fileUploadLabel}>
+                              <input 
+                                type="file" 
+                                name={field} 
+                                onChange={handleFileChange} 
+                                style={styles.fileInput}
+                              />
+                              <span style={styles.fileUploadButton}>
+                                {field === 'carte_identite' && 'Carte ID'}
+                                {field === 'diplome' && 'Diplôme'}
+                                {field === 'releve_notes' && 'Relevé'}
+                                {field === 'doc_sante' && 'Santé'}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+
+                        <div style={styles.formActions}>
+                          <button style={styles.submitButton} type="submit">
+                            Mettre à jour
+                          </button>
+                          <button 
+                            style={styles.cancelButton}
+                            type="button"
+                            onClick={() => setEditMode(false)}
+                          >
+                            Annuler
+                          </button>
+                        </div>
+                      </form>
+                    </div>
                   )}
                 </div>
-              </form>
+              ) : (
+                <div>
+                  <p style={styles.emptyMessage}>Aucun dossier enregistré</p>
+                  <form onSubmit={handleDossierSubmit} encType="multipart/form-data" style={styles.form}>
+                    <div style={styles.formGroup}>
+                      <label style={styles.formLabel}>Niveau d'étude</label>
+                      <select 
+                        style={styles.formSelect}
+                        value={niveauEtude} 
+                        onChange={(e) => setNiveauEtude(e.target.value)}
+                        required
+                      >
+                        <option value="baccalaureat">Baccalauréat</option>
+                        <option value="licence">Licence</option>
+                        <option value="master">Master</option>
+                      </select>
+                    </div>
+
+                    <div style={styles.fileUploadGroup}>
+                      {['carte_identite', 'diplome', 'releve_notes', 'doc_sante'].map((field) => (
+                        <label key={field} style={styles.fileUploadLabel}>
+                          <input 
+                            type="file" 
+                            name={field} 
+                            onChange={handleFileChange} 
+                            required
+                            style={styles.fileInput}
+                          />
+                          <span style={styles.fileUploadButton}>
+                            {field === 'carte_identite' && 'Carte ID'}
+                            {field === 'diplome' && 'Diplôme'}
+                            {field === 'releve_notes' && 'Relevé'}
+                            {field === 'doc_sante' && 'Santé'}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+
+                    <button style={{...styles.submitButton, ...styles.importantButton}} type="submit">
+                      Créer le dossier
+                    </button>
+                  </form>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -380,32 +386,23 @@ const styles = {
     fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
   },
   header: {
-    position: 'relative',
-    background: 'linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%)',
+    background: 'linear-gradient(135deg,rgb(216, 95, 95) 0%, #b71c1c 100%)',
     color: 'white',
-    paddingBottom: '60px',
-    marginBottom: '40px',
+    padding: '20px 0',
+    marginBottom: '30px',
     boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
   },
-  headerContent: {
-    maxWidth: '1200px',
-    margin: '0 auto',
-    padding: '30px 20px',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  headerWave: {
-    position: 'absolute',
-    bottom: '-10px',
-    left: 0,
-    right: 0,
-    height: '60px',
-    backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 1440 320\'%3E%3Cpath fill=\'%23f5f5f5\' fill-opacity=\'1\' d=\'M0,192L48,197.3C96,203,192,213,288,229.3C384,245,480,267,576,250.7C672,235,768,181,864,181.3C960,181,1056,235,1152,234.7C1248,235,1344,181,1392,154.7L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z\'%3E%3C/path%3E%3C/svg%3E")',
-    backgroundSize: 'cover',
-  },
+headerContent: {
+  paddingLeft: '10px',         // ✅ pas de marge à gauche
+  paddingRight: '10px',
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  width: '95%',
+}
+,
   welcomeTitle: {
-    fontSize: '28px',
+    fontSize: '24px',
     fontWeight: '300',
     margin: 0,
   },
@@ -417,15 +414,11 @@ const styles = {
     color: 'white',
     border: '1px solid white',
     borderRadius: '25px',
-    padding: '10px 20px',
+    padding: '8px 16px',
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
-    transition: 'all 0.3s ease',
-  },
-  logoutIcon: {
-    fontSize: '16px',
   },
   content: {
     maxWidth: '1200px',
@@ -454,34 +447,31 @@ const styles = {
     color: '#ef6c00',
     borderLeft: '4px solid #ff9800',
   },
-  cardContainer: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
-    gap: '25px',
+  horizontalCardContainer: {
+    display: 'flex',
+    gap: '20px',
+    overflowX: 'auto',
+    paddingBottom: '20px',
   },
   card: {
     backgroundColor: 'white',
     borderRadius: '12px',
     boxShadow: '0 5px 15px rgba(0,0,0,0.05)',
     overflow: 'hidden',
-    transition: 'transform 0.3s ease, box-shadow 0.3s ease',
-  },
-  importantCard: {
-    borderTop: '4px solid #d32f2f',
+    minWidth: '350px',
+    flex: '1',
   },
   cardHeader: {
-    padding: '20px',
+    padding: '15px 20px',
     borderBottom: '1px solid #eee',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  importantCardHeader: {
-    backgroundColor: 'rgba(211, 47, 47, 0.05)',
+    backgroundColor: 'rgba(211, 47, 47, 0.05)'
   },
   cardTitle: {
     margin: 0,
-    fontSize: '18px',
+    fontSize: '16px',
     fontWeight: '600',
     color: '#333',
   },
@@ -489,12 +479,12 @@ const styles = {
     backgroundColor: '#e0e0e0',
     color: '#616161',
     borderRadius: '50%',
-    width: '28px',
-    height: '28px',
+    width: '24px',
+    height: '24px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: '14px',
+    fontSize: '12px',
     fontWeight: 'bold',
   },
   cardBody: {
@@ -510,7 +500,7 @@ const styles = {
     padding: 0,
     margin: 0,
     display: 'grid',
-    gap: '12px',
+    gap: '10px',
   },
   documentItem: {
     padding: '15px',
@@ -527,12 +517,13 @@ const styles = {
   documentTitle: {
     fontWeight: '500',
     color: '#424242',
+    fontSize: '14px',
   },
   documentStatus: {
-    fontSize: '12px',
+    fontSize: '11px',
     fontWeight: '600',
-    padding: '4px 8px',
-    borderRadius: '12px',
+    padding: '3px 6px',
+    borderRadius: '10px',
     backgroundColor: '#e0e0e0',
     color: '#616161',
   },
@@ -544,10 +535,15 @@ const styles = {
     backgroundColor: '#e8f5e9',
     color: '#2e7d32',
   },
+  statusRejected: {
+    backgroundColor: '#ffebee',
+    color: '#c62828',
+  },
   documentMeta: {
     display: 'flex',
     justifyContent: 'space-between',
-    fontSize: '13px',
+    alignItems: 'center',
+    fontSize: '12px',
     color: '#9e9e9e',
   },
   documentDate: {
@@ -556,44 +552,44 @@ const styles = {
   documentFiles: {
     display: 'flex',
     flexWrap: 'wrap',
-    gap: '10px',
+    gap: '8px',
     marginTop: '8px'
   },
   fileLink: {
     display: 'inline-flex',
     alignItems: 'center',
     gap: '4px',
-    padding: '4px 8px',
+    padding: '3px 6px',
     backgroundColor: '#f5f5f5',
     borderRadius: '4px',
     color: '#d32f2f',
     textDecoration: 'none',
-    fontSize: '13px',
+    fontSize: '12px',
   },
   form: {
     display: 'grid',
-    gap: '20px',
+    gap: '15px',
   },
   formGroup: {
     display: 'grid',
-    gap: '8px',
+    gap: '6px',
   },
   formLabel: {
-    fontSize: '14px',
+    fontSize: '13px',
     fontWeight: '500',
     color: '#616161',
   },
   formSelect: {
-    padding: '12px 15px',
+    padding: '10px 12px',
     border: '1px solid #e0e0e0',
-    borderRadius: '8px',
+    borderRadius: '6px',
     backgroundColor: '#fafafa',
-    fontSize: '14px',
+    fontSize: '13px',
   },
   fileUploadGroup: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
-    gap: '12px',
+    gap: '10px',
   },
   fileUploadLabel: {
     position: 'relative',
@@ -610,48 +606,65 @@ const styles = {
   },
   fileUploadButton: {
     display: 'block',
-    padding: '12px',
+    padding: '10px',
     backgroundColor: '#f5f5f5',
     border: '1px dashed #e0e0e0',
-    borderRadius: '8px',
+    borderRadius: '6px',
     textAlign: 'center',
-    fontSize: '13px',
+    fontSize: '12px',
     cursor: 'pointer',
   },
   submitButton: {
-    padding: '12px 20px',
+    padding: '10px 15px',
     backgroundColor: '#d32f2f',
     color: 'white',
     border: 'none',
-    borderRadius: '8px',
+    borderRadius: '6px',
     fontWeight: '600',
     cursor: 'pointer',
+    fontSize: '13px',
   },
   importantButton: {
     backgroundColor: '#b71c1c',
   },
   editButton: {
     backgroundColor: 'transparent',
-    border: 'none',
+    border: '1px solid #1976d2',
     color: '#1976d2',
     cursor: 'pointer',
-    fontSize: '12px',
-    marginLeft: '8px',
-    padding: '2px 5px',
+    fontSize: '11px',
+    padding: '3px 8px',
+    borderRadius: '4px',
   },
   formActions: {
     display: 'flex',
     gap: '10px',
   },
   cancelButton: {
-    padding: '12px 20px',
+    padding: '10px 15px',
     backgroundColor: '#e0e0e0',
     color: '#616161',
     border: 'none',
-    borderRadius: '8px',
+    borderRadius: '6px',
     fontWeight: '600',
     cursor: 'pointer',
-  }
+    fontSize: '13px',
+  },
+  logoAndWelcome: {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '12px',
+},
+
+logo: {
+  width: '150px',          // Agrandir la largeur
+  height: '60px',         // Agrandir la hauteur
+  objectFit: 'contain',   // Garde les proportions
+  display: 'block',
+  borderRadius: '8px',    // Optionnel : coins arrondis
+}
+
+
 };
 
 export default DashboardEtudiant;
