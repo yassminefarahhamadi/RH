@@ -6,6 +6,7 @@ const path = require('path');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const documentRoutes = require('./routes/documents');
+const congeRoutes = require('./routes/conges'); 
 
 const app = express();
 app.use(cors());
@@ -21,6 +22,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/documents', documentRoutes);
+app.use('/api/conges', congeRoutes); 
 
 // Lancement serveur
 const PORT = process.env.PORT || 5000;
