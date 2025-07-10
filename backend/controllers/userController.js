@@ -36,7 +36,6 @@ exports.remove = async (req, res) => {
   }
 };
 
-
 exports.getById = async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
@@ -47,3 +46,24 @@ exports.getById = async (req, res) => {
   }
 };
 
+exports.getFiltered = async (req, res) => {
+  const { bloc, poste } = req.query;
+  try {
+    let sql = 'SELECT * FROM users WHERE role = "employe"';
+    const params = [];
+
+    if (bloc) {
+      sql += ' AND blocAffecte = ?';
+      params.push(bloc);
+    }
+    if (poste) {
+      sql += ' AND type_poste = ?';
+      params.push(poste);
+    }
+
+    const [rows] = await require('../db').query(sql, params);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+};

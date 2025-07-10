@@ -5,7 +5,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// Configuration Multer
+// Configuration Multer pour uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, 'uploads/');
@@ -15,20 +15,21 @@ const storage = multer.diskStorage({
     cb(null, `${Date.now()}-${file.fieldname}${ext}`);
   }
 });
-
 const upload = multer({ storage });
 
+// Fonction pour récupérer la date au fuseau tunisien (format YYYY-MM-DD)
 const getTunisianDate = () => {
   const now = new Date();
   now.setHours(now.getHours() + 1);
   return now.toISOString().split('T')[0];
 };
 
+// Supprimer les anciens fichiers liés à un document
 const deleteOldFiles = async (docId) => {
   try {
     const [rows] = await db.query('SELECT * FROM documents WHERE id = ?', [docId]);
     if (rows.length === 0) return;
-    
+
     const doc = rows[0];
     const files = [
       doc.carte_identite,
@@ -36,7 +37,7 @@ const deleteOldFiles = async (docId) => {
       doc.releve_notes,
       doc.doc_sante
     ].filter(Boolean);
-    
+
     files.forEach(file => {
       const filePath = path.join(__dirname, '../uploads', file);
       if (fs.existsSync(filePath)) {
@@ -48,7 +49,41 @@ const deleteOldFiles = async (docId) => {
   }
 };
 
-// Get user documents
+// GET toutes les demandes avec infos utilisateur (hors dossiers physiques)
+router.get('/', async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT d.*, u.name AS user_name, u.email AS user_email 
+       FROM documents d 
+       JOIN users u ON d.user_id = u.id 
+       WHERE d.title != 'Dossier physique'
+       ORDER BY d.date_demande DESC`
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Erreur chargement demandes', err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+// GET tous les dossiers physiques avec infos utilisateur
+router.get('/dossiers/physiques', async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT d.*, u.name AS user_name, u.email AS user_email 
+       FROM documents d 
+       JOIN users u ON d.user_id = u.id 
+       WHERE d.title = 'Dossier physique'
+       ORDER BY d.date_demande DESC`
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Erreur chargement dossiers physiques', err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+// GET demandes d’un utilisateur (toutes, y compris dossiers physiques)
 router.get('/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
@@ -63,20 +98,20 @@ router.get('/:userId', async (req, res) => {
   }
 });
 
-// Create new attestation request
+// POST nouvelle demande simple d’attestation
 router.post('/demande', async (req, res) => {
   try {
     const { user_id, title } = req.body;
-    
+
     const [existing] = await db.query(
       'SELECT * FROM documents WHERE user_id = ? AND title = ? AND statut IN ("en_attente", "approuvé")',
       [user_id, title]
     );
-    
+
     if (existing.length > 0) {
       return res.status(400).json({ message: 'Vous avez déjà une demande en cours pour ce type d\'attestation' });
     }
-    
+
     const dateDemande = getTunisianDate();
 
     await db.query(
@@ -91,20 +126,20 @@ router.post('/demande', async (req, res) => {
   }
 });
 
-// Cancel a request
+// DELETE annuler une demande (seulement si en_attente)
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const [rows] = await db.query('SELECT * FROM documents WHERE id = ?', [id]);
-    
+
     if (rows.length === 0) {
       return res.status(404).json({ message: 'Demande non trouvée' });
     }
-    
+
     if (rows[0].statut !== 'en_attente') {
       return res.status(400).json({ message: 'Seules les demandes en attente peuvent être annulées' });
     }
-    
+
     await db.query('DELETE FROM documents WHERE id = ?', [id]);
     res.json({ message: 'Demande annulée' });
   } catch (err) {
@@ -113,7 +148,7 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// Create or update physical dossier
+// POST créer un dossier physique avec fichiers
 router.post('/dossier', upload.fields([
   { name: 'carte_identite', maxCount: 1 },
   { name: 'diplome', maxCount: 1 },
@@ -122,16 +157,16 @@ router.post('/dossier', upload.fields([
 ]), async (req, res) => {
   try {
     const { user_id, niveau_etude } = req.body;
-    
+
     const [existing] = await db.query(
       'SELECT * FROM documents WHERE user_id = ? AND title = "Dossier physique"',
       [user_id]
     );
-    
+
     if (existing.length > 0) {
       return res.status(400).json({ message: 'Vous avez déjà un dossier physique. Utilisez la modification.' });
     }
-    
+
     const dateDemande = getTunisianDate();
 
     await db.query(
@@ -158,7 +193,7 @@ router.post('/dossier', upload.fields([
   }
 });
 
-// Update physical dossier
+// PUT modifier un dossier physique avec fichiers
 router.put('/:id', upload.fields([
   { name: 'carte_identite', maxCount: 1 },
   { name: 'diplome', maxCount: 1 },
@@ -167,38 +202,60 @@ router.put('/:id', upload.fields([
 ]), async (req, res) => {
   try {
     const { id } = req.params;
-    const { user_id, niveau_etude } = req.body;
-    
+    const { niveau_etude } = req.body;
+
     const [rows] = await db.query('SELECT * FROM documents WHERE id = ?', [id]);
     if (rows.length === 0) {
       return res.status(404).json({ message: 'Dossier non trouvé' });
     }
-    
-    const currentDoc = rows[0];
-    const updateData = {
-      niveau_etude,
-      date_demande: getTunisianDate()
-    };
-    
-    // Handle file updates
+
+    const updateData = { niveau_etude, date_demande: getTunisianDate() };
+
     if (req.files.carte_identite) {
       await deleteOldFiles(id);
       updateData.carte_identite = req.files.carte_identite[0].filename;
     }
-    if (req.files.diplome) {
-      updateData.diplome = req.files.diplome[0].filename;
-    }
-    if (req.files.releve_notes) {
-      updateData.releve_notes = req.files.releve_notes[0].filename;
-    }
-    if (req.files.doc_sante) {
-      updateData.doc_sante = req.files.doc_sante[0].filename;
-    }
-    
+    if (req.files.diplome) updateData.diplome = req.files.diplome[0].filename;
+    if (req.files.releve_notes) updateData.releve_notes = req.files.releve_notes[0].filename;
+    if (req.files.doc_sante) updateData.doc_sante = req.files.doc_sante[0].filename;
+
     await db.query('UPDATE documents SET ? WHERE id = ?', [updateData, id]);
     res.json({ message: 'Dossier mis à jour' });
   } catch (err) {
     console.error('Erreur:', err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+// Mettre à jour le statut d’une demande (accepter/refuser)
+// Autorise aussi la mise à jour des dossiers physiques
+router.put('/:id/statut', async (req, res) => {
+  const { id } = req.params;
+  const { statut } = req.body;
+
+  if (!['approuvé', 'refusé', 'en_attente'].includes(statut)) {
+    return res.status(400).json({ message: 'Statut invalide' });
+  }
+
+  try {
+    const [rows] = await db.query('SELECT * FROM documents WHERE id = ?', [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'Demande non trouvée' });
+    }
+
+    // Ici on autorise la modification du statut même pour les dossiers physiques
+    const [result] = await db.query(
+      'UPDATE documents SET statut = ? WHERE id = ?',
+      [statut, id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Demande non trouvée' });
+    }
+
+    res.json({ message: `Demande ${statut}` });
+  } catch (err) {
+    console.error('Erreur mise à jour statut', err);
     res.status(500).json({ message: 'Erreur serveur' });
   }
 });
