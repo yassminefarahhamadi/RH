@@ -1,3 +1,4 @@
+const bcrypt = require('bcrypt');
 const User = require('../models/User');
 
 exports.getAll = async (req, res) => {
@@ -11,18 +12,36 @@ exports.getAll = async (req, res) => {
 
 exports.create = async (req, res) => {
   try {
-    const id = await User.create(req.body);
+    const { password, ...rest } = req.body;
+
+    if (!password) {
+      return res.status(400).json({ message: 'Le mot de passe est obligatoire' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const id = await User.create({ ...rest, password: hashedPassword });
     res.status(201).json({ message: 'Utilisateur créé', id });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: 'Erreur serveur' });
   }
 };
 
 exports.update = async (req, res) => {
   try {
-    await User.update(req.params.id, req.body);
+    const { password, ...rest } = req.body;
+
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      await User.update(req.params.id, { ...rest, password: hashedPassword });
+    } else {
+      await User.update(req.params.id, rest);
+    }
+
     res.json({ message: 'Utilisateur modifié' });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: 'Erreur serveur' });
   }
 };

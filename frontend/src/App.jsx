@@ -10,9 +10,7 @@ import DashboardEtudiant from './dashboards/DashboardEtudiant';
 import DashboardRH from './dashboards/DashboardRH';
 import DashboardEtudes from './dashboards/DashboardEtudes';
 
-import AjouterUtilisateur from './pages/AjouterUtilisateur';
-import ModifierUtilisateur from './pages/ModifierUtilisateur';
-import DetailsUtilisateur from './pages/DetailsUtilisateur';
+
 
 const containerStyle = {
   textAlign: 'center',
@@ -94,9 +92,9 @@ function App() {
           {role === 'admin' && (
             <>
               <Route path="/utilisateurs" element={<DashboardAdmin onLogout={logout} />} />
-              <Route path="/ajouter-utilisateur" element={<AjouterUtilisateur />} />
-              <Route path="/modifier-utilisateur/:id" element={<ModifierUtilisateur />} />
-              <Route path="/details-utilisateur/:id" element={<DetailsUtilisateur />} />
+              
+              
+             
             </>
           )}
 
