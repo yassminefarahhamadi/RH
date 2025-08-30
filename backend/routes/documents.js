@@ -233,7 +233,8 @@ router.put('/:id/statut', async (req, res) => {
   const { id } = req.params;
   const { statut } = req.body;
 
-  if (!['approuvé', 'refusé', 'en_attente'].includes(statut)) {
+  // Accept only 'validée', 'refusée' or 'en_attente'
+  if (!['validée', 'refusée', 'en_attente'].includes(statut)) {
     return res.status(400).json({ message: 'Statut invalide' });
   }
 
@@ -243,7 +244,6 @@ router.put('/:id/statut', async (req, res) => {
       return res.status(404).json({ message: 'Demande non trouvée' });
     }
 
-    // Ici on autorise la modification du statut même pour les dossiers physiques
     const [result] = await db.query(
       'UPDATE documents SET statut = ? WHERE id = ?',
       [statut, id]

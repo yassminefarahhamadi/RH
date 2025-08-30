@@ -135,21 +135,88 @@ const DashboardEtudiant = ({ onLogout }) => {
     return !demandes.some(d => d.title === type && d.statut !== 'refusé');
   };
 
+  // Function to get status style based on status value
+  const getStatusStyle = (status) => {
+    switch(status) {
+      case 'validée':
+        return { backgroundColor: '#4caf50', color: 'white' };
+      case 'en_attente':
+        return { backgroundColor: '#ff9800', color: 'white' };
+      case 'refusée':
+        return { backgroundColor: '#f44336', color: 'white' };
+      default:
+        return { backgroundColor: '#e0e0e0', color: '#616161' };
+    }
+  };
+
   return (
     <div style={styles.container}>
-      <div style={styles.header}>
-      <div style={styles.headerContent}>
-  <div style={styles.logoAndWelcome}>
-    <img src="/logo.png" alt="Logo" style={styles.logo} />
-    <h2 style={styles.welcomeTitle}>
-      Bonjour, <span style={styles.nameHighlight}>{name}</span>
-    </h2>
-  </div>
-  <button style={styles.logoutButton} onClick={onLogout}>Déconnexion</button>
-</div>
+      {/* Header identique à DashboardAdmin */}
+      <header
+        style={{
+          background: "linear-gradient(135deg, rgb(216, 95, 95) 0%, #b71c1c 100%)",
+          color: "white",
+          padding: "20px 0",
+          marginBottom: "30px",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+        }}
+      >
+        <div
+          style={{
+            width: "95%",
+            maxWidth: "1200px",
+            margin: "0 auto",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          {/* Logo + Welcome message */}
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <img
+              src="/logo.png"
+              alt="Logo"
+              style={{
+                width: "150px",
+                height: "60px",
+                objectFit: "contain",
+                borderRadius: "8px",
+              }}
+            />
+            <h2 style={{ margin: 0 }}>
+              Bonjour,{" "}
+              <span style={{ fontWeight: "600" }}>
+                {name}
+              </span>
+            </h2>
+          </div>
 
-
-      </div>
+          {/* Logout button */}
+          <button
+            onClick={onLogout}
+            style={{
+              backgroundColor: "transparent",
+              color: "white",
+              border: "1px solid white",
+              borderRadius: "25px",
+              padding: "8px 16px",
+              cursor: "pointer",
+              fontWeight: "600",
+              transition: "background-color 0.3s, color 0.3s",
+            }}
+            onMouseOver={(e) => {
+              e.target.style.backgroundColor = "white";
+              e.target.style.color = "#b71c1c";
+            }}
+            onMouseOut={(e) => {
+              e.target.style.backgroundColor = "transparent";
+              e.target.style.color = "white";
+            }}
+          >
+            Déconnexion
+          </button>
+        </div>
+      </header>
 
       <div style={styles.content}>
         {message && (
@@ -180,9 +247,7 @@ const DashboardEtudiant = ({ onLogout }) => {
                         <span style={styles.documentTitle}>{doc.title}</span>
                         <span style={{
                           ...styles.documentStatus,
-                          ...(doc.statut === 'en_attente' ? styles.statusPending : {}),
-                          ...(doc.statut === 'approuvé' ? styles.statusApproved : {}),
-                          ...(doc.statut === 'refusé' ? styles.statusRejected : {})
+                          ...getStatusStyle(doc.statut)
                         }}>
                           {doc.statut}
                         </span>
@@ -253,8 +318,7 @@ const DashboardEtudiant = ({ onLogout }) => {
                       <span style={styles.documentTitle}>Dossier ({dossier.niveau_etude})</span>
                       <span style={{
                         ...styles.documentStatus,
-                        ...(dossier.statut === 'en_attente' ? styles.statusPending : {}),
-                        ...(dossier.statut === 'approuvé' ? styles.statusApproved : {})
+                        ...getStatusStyle(dossier.statut)
                       }}>
                         {dossier.statut}
                       </span>
@@ -385,41 +449,6 @@ const styles = {
     backgroundColor: '#f5f5f5',
     fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
   },
-  header: {
-    background: 'linear-gradient(135deg,rgb(216, 95, 95) 0%, #b71c1c 100%)',
-    color: 'white',
-    padding: '20px 0',
-    marginBottom: '30px',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-  },
-headerContent: {
-  paddingLeft: '10px',         // ✅ pas de marge à gauche
-  paddingRight: '10px',
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  width: '95%',
-}
-,
-  welcomeTitle: {
-    fontSize: '24px',
-    fontWeight: '300',
-    margin: 0,
-  },
-  nameHighlight: {
-    fontWeight: '600',
-  },
-  logoutButton: {
-    backgroundColor: 'transparent',
-    color: 'white',
-    border: '1px solid white',
-    borderRadius: '25px',
-    padding: '8px 16px',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-  },
   content: {
     maxWidth: '1200px',
     margin: '0 auto',
@@ -524,20 +553,6 @@ headerContent: {
     fontWeight: '600',
     padding: '3px 6px',
     borderRadius: '10px',
-    backgroundColor: '#e0e0e0',
-    color: '#616161',
-  },
-  statusPending: {
-    backgroundColor: '#fff3e0',
-    color: '#ef6c00',
-  },
-  statusApproved: {
-    backgroundColor: '#e8f5e9',
-    color: '#2e7d32',
-  },
-  statusRejected: {
-    backgroundColor: '#ffebee',
-    color: '#c62828',
   },
   documentMeta: {
     display: 'flex',
@@ -649,22 +664,7 @@ headerContent: {
     fontWeight: '600',
     cursor: 'pointer',
     fontSize: '13px',
-  },
-  logoAndWelcome: {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '12px',
-},
-
-logo: {
-  width: '150px',          // Agrandir la largeur
-  height: '60px',         // Agrandir la hauteur
-  objectFit: 'contain',   // Garde les proportions
-  display: 'block',
-  borderRadius: '8px',    // Optionnel : coins arrondis
-}
-
-
+  }
 };
 
 export default DashboardEtudiant;

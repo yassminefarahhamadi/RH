@@ -31,6 +31,15 @@ const BLOC_AFFECTE_OPTIONS = [
   { value: 'K', label: 'K' },
 ];
 
+// Role color mapping
+const ROLE_COLORS = {
+  admin: { bg: '#d32f2f', text: '#fff' },
+  etudiant: { bg: '#1976d2', text: '#fff' },
+  employe: { bg: '#388e3c', text: '#fff' },
+  admin_rh: { bg: '#f57c00', text: '#fff' },
+  admin_etudes: { bg: '#7b1fa2', text: '#fff' },
+};
+
 // ✅ Formulaire utilisateur
 const UserForm = ({ user, onSave, onCancel }) => {
   const [name, setName] = useState(user?.name || '');
@@ -169,6 +178,8 @@ function UserList() {
   const [message, setMessage] = useState('');
   const [editingUser, setEditingUser] = useState(null);
   const [viewMode, setViewMode] = useState('list');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [usersPerPage] = useState(5);
 
   const fetchUsers = async () => {
     try {
@@ -215,6 +226,29 @@ function UserList() {
     setEditingUser(null);
   };
 
+  // Get current users for pagination
+  const indexOfLastUser = currentPage * usersPerPage;
+  const indexOfFirstUser = indexOfLastUser - usersPerPage;
+  const currentUsers = users.slice(indexOfFirstUser, indexOfLastUser);
+
+  // Change page
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+  const nextPage = () => {
+    if (currentPage < Math.ceil(users.length / usersPerPage)) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+  const prevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  // Function to get role badge style
+  const getRoleBadgeStyle = (role) => {
+    return ROLE_COLORS[role] || { bg: '#616161', text: '#fff' };
+  };
+
   return (
     <div>
       {viewMode === 'list' && (
@@ -226,47 +260,79 @@ function UserList() {
           <button style={styles.addButton} onClick={handleAdd}>
             ➕ Ajouter un utilisateur
           </button>
-          <table style={styles.table}>
-            <thead>
-              <tr>
-                <th style={styles.tableHeader}>Nom</th>
-                <th style={styles.tableHeader}>Email</th>
-                <th style={styles.tableHeader}>Rôle</th>
-                <th style={styles.tableHeader}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.length === 0 ? (
+          
+          <div style={styles.tableContainer}>
+            <table style={styles.table}>
+              <thead>
                 <tr>
-                  <td colSpan="4" style={{ textAlign: 'center', padding: 20 }}>Aucun utilisateur</td>
+                  <th style={styles.tableHeader}>Nom</th>
+                  <th style={styles.tableHeader}>Email</th>
+                  <th style={styles.tableHeader}>Rôle</th>
+                  <th style={styles.tableHeader}>Actions</th>
                 </tr>
-              ) : (
-                users.map(u => (
-                  <tr key={u.id} style={styles.tableRow}>
-                    <td style={styles.tableCell}>{u.name}</td>
-                    <td style={styles.tableCell}>{u.email}</td>
-                    <td style={styles.tableCell}>
-                      <span
-                        style={{
-                          ...styles.roleBadge,
-                          ...(u.role === 'admin' ? styles.adminBadge : {}),
-                          ...(u.role === 'etudiant' ? styles.studentBadge : {}),
-                          ...(u.role.includes('admin_') ? styles.adminSubBadge : {}),
-                          ...(u.role === 'employe' ? styles.employeeBadge : {}),
-                        }}
-                      >
-                        {u.role}
-                      </span>
-                    </td>
-                    <td style={styles.tableCell}>
-                      <button style={styles.editButton} onClick={() => handleEdit(u)}>Modifier</button>
-                      <button style={styles.deleteButton} onClick={() => handleDelete(u.id)}>Supprimer</button>
-                    </td>
+              </thead>
+              <tbody>
+                {users.length === 0 ? (
+                  <tr>
+                    <td colSpan="4" style={{ textAlign: 'center', padding: 20 }}>Aucun utilisateur</td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  currentUsers.map(u => (
+                    <tr key={u.id} style={styles.tableRow}>
+                      <td style={styles.tableCell}>{u.name}</td>
+                      <td style={styles.tableCell}>{u.email}</td>
+                      <td style={styles.tableCell}>
+                        <span
+                          style={{
+                            ...styles.roleBadge,
+                            backgroundColor: getRoleBadgeStyle(u.role).bg,
+                            color: getRoleBadgeStyle(u.role).text,
+                          }}
+                        >
+                          {u.role}
+                        </span>
+                      </td>
+                      <td style={styles.tableCell}>
+                        <button style={styles.editButton} onClick={() => handleEdit(u)}>Modifier</button>
+                        <button style={styles.deleteButton} onClick={() => handleDelete(u.id)}>Supprimer</button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+            
+            {/* Pagination */}
+            {users.length > usersPerPage && (
+              <div style={styles.pagination}>
+                <button 
+                  onClick={prevPage} 
+                  disabled={currentPage === 1}
+                  style={currentPage === 1 ? styles.paginationButtonDisabled : styles.paginationButton}
+                >
+                  Précédent
+                </button>
+                
+                {Array.from({ length: Math.ceil(users.length / usersPerPage) }, (_, i) => i + 1).map(number => (
+                  <button
+                    key={number}
+                    onClick={() => paginate(number)}
+                    style={number === currentPage ? styles.paginationButtonActive : styles.paginationButton}
+                  >
+                    {number}
+                  </button>
+                ))}
+                
+                <button 
+                  onClick={nextPage} 
+                  disabled={currentPage === Math.ceil(users.length / usersPerPage)}
+                  style={currentPage === Math.ceil(users.length / usersPerPage) ? styles.paginationButtonDisabled : styles.paginationButton}
+                >
+                  Suivant
+                </button>
+              </div>
+            )}
+          </div>
         </>
       )}
       {viewMode === 'form' && (
@@ -281,30 +347,73 @@ const DashboardAdmin = ({ onLogout }) => {
 
   return (
     <div style={styles.container}>
-      <header style={styles.header}>
-        <div style={styles.headerContent}>
-          <div style={styles.logoAndWelcome}>
-            <img src="/logo.png" alt="Logo" style={styles.logo} />
-            <h2 style={styles.welcomeTitle}>
-              Bonjour, <span style={styles.nameHighlight}>{name}</span>
-            </h2>
-          </div>
-          <button
-            style={styles.logoutButton}
-            onClick={onLogout}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)')}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-          >
-            Déconnexion
-          </button>
-        </div>
-      </header>
+      {/* ✅ HEADER same style as DashboardEmploye */}
+     <header
+  style={{
+    background: "linear-gradient(135deg, rgb(216, 95, 95) 0%, #b71c1c 100%)",
+    color: "white",
+    padding: "20px 0",
+    marginBottom: "30px",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+  }}
+>
+  <div
+    style={{
+      width: "95%",
+      maxWidth: "1200px",
+      margin: "0 auto",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+    }}
+  >
+    {/* ✅ Logo + Bonjour, name */}
+    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+      <img
+        src="/logo.png"
+        alt="Logo"
+        style={{
+          width: "150px",
+          height: "60px",
+          objectFit: "contain",
+          borderRadius: "8px",
+        }}
+      />
+      <h2 style={{ margin: 0 }}>
+        Bonjour,{" "}
+        <span style={{ fontWeight: "600" }}>
+          {localStorage.getItem("name") || "Admin Études"}
+        </span>
+      </h2>
+    </div>
+
+    {/* ✅ Logout button */}
+    <button
+      onClick={onLogout}
+      style={{
+        backgroundColor: "transparent",
+        color: "white",
+        border: "1px solid white",
+        borderRadius: "25px",
+        padding: "8px 16px",
+        cursor: "pointer",
+        fontWeight: "600",
+        transition: "background-color 0.3s, color 0.3s",
+      }}
+    >
+      Déconnexion
+    </button>
+  </div>
+</header>
+
+
       <main style={styles.content}>
         <UserList />
       </main>
     </div>
   );
 };
+
 
 // Styles
 const styleUserForm = {
@@ -321,26 +430,137 @@ const styles = {
   header: { background: 'linear-gradient(135deg, rgb(216,95,95), #b71c1c)', color: 'white', padding: '20px 0', marginBottom: 30 },
   headerContent: { width: '95%', maxWidth: 1200, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   logoAndWelcome: { display: 'flex', alignItems: 'center', gap: 12 },
-  logo: { width: 150, height: 60, objectFit: 'contain', borderRadius: 8 },
+  logo: { 
+    width: 150, 
+    height: 60, 
+    backgroundColor: 'white', 
+    borderRadius: 8, 
+    display: 'flex', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    color: '#b71c1c', 
+    fontWeight: 'bold' 
+  },
   welcomeTitle: { fontWeight: 300, fontSize: 24 },
   nameHighlight: { fontWeight: 600 },
-  logoutButton: { backgroundColor: 'transparent', color: 'white', border: '1px solid white', borderRadius: 25, padding: '8px 16px', cursor: 'pointer' },
+  logoutButton: { 
+    backgroundColor: 'transparent', 
+    color: 'white', 
+    border: '1px solid white', 
+    borderRadius: 25, 
+    padding: '8px 16px', 
+    cursor: 'pointer',
+    transition: 'background-color 0.3s'
+  },
   content: { maxWidth: 1200, margin: '0 auto', padding: '0 20px 40px' },
   sectionTitle: { color: '#b71c1c', fontSize: 22, marginBottom: 16 },
-  addButton: { padding: '10px 20px', backgroundColor: '#d32f2f', border: 'none', borderRadius: 8, color: 'white', cursor: 'pointer', marginBottom: 20 },
+  addButton: { 
+    padding: '10px 20px', 
+    backgroundColor: '#d32f2f', 
+    border: 'none', 
+    borderRadius: 8, 
+    color: 'white', 
+    cursor: 'pointer', 
+    marginBottom: 20,
+    fontWeight: 600
+  },
+  tableContainer: {
+    backgroundColor: 'white',
+    borderRadius: 8,
+    overflow: 'hidden',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+  },
   table: { width: '100%', borderCollapse: 'collapse' },
-  tableHeader: { padding: '14px 15px', textAlign: 'left', fontWeight: 600, color: '#424242', borderBottom: '2px solid #ddd', backgroundColor: '#f8f8f8' },
-  tableRow: { transition: 'background-color 0.2s ease' },
-  tableCell: { padding: '12px 15px', color: '#616161', fontSize: 14 },
-  roleBadge: { display: 'inline-block', padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600 },
-  adminBadge: { backgroundColor: '#d32f2f', color: 'white' },
-  adminSubBadge: { backgroundColor: '#ffcdd2', color: '#b71c1c' },
-  studentBadge: { backgroundColor: '#e8f5e9', color: '#2e7d32' },
-  employeeBadge: { backgroundColor: '#e3f2fd', color: '#1565c0' },
-  editButton: { backgroundColor: '#1976d2', color: 'white', border: 'none', borderRadius: 6, padding: '6px 14px', marginRight: 10, cursor: 'pointer' },
-  deleteButton: { backgroundColor: '#d32f2f', color: 'white', border: 'none', borderRadius: 6, padding: '6px 14px', cursor: 'pointer' },
-  successMessage: { backgroundColor: '#e8f5e9', color: '#2e7d32', borderLeft: '5px solid #4caf50', padding: 12, marginBottom: 20 },
-  errorMessage: { backgroundColor: '#ffebee', color: '#c62828', borderLeft: '5px solid #f44336', padding: 12, marginBottom: 20 },
+  tableHeader: { 
+    padding: '14px 15px', 
+    textAlign: 'left', 
+    fontWeight: 600, 
+    color: '#424242', 
+    borderBottom: '2px solid #ddd', 
+    backgroundColor: '#f8f8f8' 
+  },
+  tableRow: { 
+    transition: 'background-color 0.2s ease',
+    '&:hover': {
+      backgroundColor: '#f9f9f9'
+    }
+  },
+  tableCell: { padding: '12px 15px', color: '#616161', fontSize: 14, borderBottom: '1px solid #eee' },
+  roleBadge: { 
+    display: 'inline-block', 
+    padding: '5px 12px', 
+    borderRadius: 20, 
+    fontSize: 12, 
+    fontWeight: 600,
+    textTransform: 'capitalize'
+  },
+  editButton: { 
+    backgroundColor: '#1976d2', 
+    color: 'white', 
+    border: 'none', 
+    borderRadius: 6, 
+    padding: '6px 14px', 
+    marginRight: 10, 
+    cursor: 'pointer',
+    fontSize: 13
+  },
+  deleteButton: { 
+    backgroundColor: '#d32f2f', 
+    color: 'white', 
+    border: 'none', 
+    borderRadius: 6, 
+    padding: '6px 14px', 
+    cursor: 'pointer',
+    fontSize: 13
+  },
+  successMessage: { 
+    backgroundColor: '#e8f5e9', 
+    color: '#2e7d32', 
+    borderLeft: '5px solid #4caf50', 
+    padding: 12, 
+    marginBottom: 20,
+    borderRadius: 4
+  },
+  errorMessage: { 
+    backgroundColor: '#ffebee', 
+    color: '#c62828', 
+    borderLeft: '5px solid #f44336', 
+    padding: 12, 
+    marginBottom: 20,
+    borderRadius: 4
+  },
+  pagination: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: '15px',
+    gap: '8px'
+  },
+  paginationButton: {
+    padding: '8px 12px',
+    backgroundColor: '#f0f0f0',
+    border: '1px solid #ddd',
+    borderRadius: 4,
+    cursor: 'pointer',
+    color: '#333'
+  },
+  paginationButtonActive: {
+    padding: '8px 12px',
+    backgroundColor: '#d32f2f',
+    border: '1px solid #d32f2f',
+    borderRadius: 4,
+    cursor: 'pointer',
+    color: 'white',
+    fontWeight: 'bold'
+  },
+  paginationButtonDisabled: {
+    padding: '8px 12px',
+    backgroundColor: '#f0f0f0',
+    border: '1px solid #ddd',
+    borderRadius: 4,
+    color: '#999',
+    cursor: 'not-allowed'
+  }
 };
 
 export default DashboardAdmin;

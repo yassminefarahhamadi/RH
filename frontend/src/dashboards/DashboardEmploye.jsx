@@ -75,22 +75,17 @@ const DashboardEmploye = ({ onLogout }) => {
     }
   };
 
+  // ✅ Texte en couleur (vert, rouge, jaune)
   const getStatusStyle = (statut) => {
-    const base = {
-      padding: '6px 12px',
-      borderRadius: '12px',
-      fontWeight: '600',
-      fontSize: '13px',
-      textTransform: 'capitalize',
-      display: 'inline-block',
-    };
     switch (statut) {
-      case 'accepté':
-        return { ...base, backgroundColor: '#e8f5e9', color: '#2e7d32' };
-      case 'refusé':
-        return { ...base, backgroundColor: '#ffebee', color: '#c62828' };
+      case 'accepte':
+        return { color: 'green', fontWeight: 'bold' };
+      case 'refuse':
+        return { color: 'red', fontWeight: 'bold' };
+      case 'en_attente':
+        return { color: 'orange', fontWeight: 'bold' };
       default:
-        return { ...base, backgroundColor: '#fff3e0', color: '#ef6c00' };
+        return { color: 'black', fontWeight: 'bold' };
     }
   };
 
