@@ -41,18 +41,20 @@ const DashboardEtudiant = ({ onLogout }) => {
     }
   }, [id, onLogout, fetchDocuments]);
 
+  const canRequestAttestation = (type) => {
+    return !demandes.some(d => d.title === type && d.statut === 'en_attente');
+  };
+
   const handleSimpleSubmit = async (e) => {
     e.preventDefault();
-    
-    const existingRequest = demandes.find(d => 
-      d.title === newTitle && d.statut !== 'refusé'
-    );
 
+    const existingRequest = demandes.find(d =>
+      d.title === newTitle && d.statut === 'en_attente'
+    );
     if (existingRequest) {
-      setMessage('⚠️ Vous avez déjà une demande en cours pour ce type d\'attestation');
+      setMessage('⚠️ Vous avez déjà une demande en attente pour ce type d\'attestation');
       return;
     }
-
     try {
       await axios.post('http://localhost:5000/api/documents/demande', {
         user_id: parseInt(id),
@@ -88,11 +90,9 @@ const DashboardEtudiant = ({ onLogout }) => {
     formData.append('user_id', id);
     formData.append('niveau_etude', niveauEtude);
     formData.append('title', 'Dossier physique');
-
     Object.entries(files).forEach(([key, file]) => {
       if (file) formData.append(key, file);
     });
-
     try {
       if (editMode && dossier) {
         await axios.put(`http://localhost:5000/api/documents/${dossier.id}`, formData, {
@@ -105,7 +105,6 @@ const DashboardEtudiant = ({ onLogout }) => {
         });
         setMessage('✅ Dossier envoyé');
       }
-      
       setFiles({});
       setEditMode(false);
       fetchDocuments();
@@ -124,18 +123,13 @@ const DashboardEtudiant = ({ onLogout }) => {
 
   const renderFileLinks = (doc) => (
     <div style={styles.documentFiles}>
-      {doc.carte_identite && <a href={`http://localhost:5000/uploads/${doc.carte_identite}`} target="_blank" style={styles.fileLink}> Carte ID</a>}
-      {doc.diplome && <a href={`http://localhost:5000/uploads/${doc.diplome}`} target="_blank" style={styles.fileLink}> Diplôme</a>}
-      {doc.releve_notes && <a href={`http://localhost:5000/uploads/${doc.releve_notes}`} target="_blank" style={styles.fileLink}> Relevé</a>}
-      {doc.doc_sante && <a href={`http://localhost:5000/uploads/${doc.doc_sante}`} target="_blank" style={styles.fileLink}> Santé</a>}
+      {doc.carte_identite && <a href={`http://localhost:5000/uploads/${doc.carte_identite}`} target="_blank" rel="noreferrer" style={styles.fileLink}> Carte ID</a>}
+      {doc.diplome && <a href={`http://localhost:5000/uploads/${doc.diplome}`} target="_blank" rel="noreferrer" style={styles.fileLink}> Diplôme</a>}
+      {doc.releve_notes && <a href={`http://localhost:5000/uploads/${doc.releve_notes}`} target="_blank" rel="noreferrer" style={styles.fileLink}> Relevé</a>}
+      {doc.doc_sante && <a href={`http://localhost:5000/uploads/${doc.doc_sante}`} target="_blank" rel="noreferrer" style={styles.fileLink}> Santé</a>}
     </div>
   );
 
-  const canRequestAttestation = (type) => {
-    return !demandes.some(d => d.title === type && d.statut !== 'refusé');
-  };
-
-  // Function to get status style based on status value
   const getStatusStyle = (status) => {
     switch(status) {
       case 'validée':
@@ -190,7 +184,6 @@ const DashboardEtudiant = ({ onLogout }) => {
               </span>
             </h2>
           </div>
-
           {/* Logout button */}
           <button
             onClick={onLogout}
@@ -217,7 +210,6 @@ const DashboardEtudiant = ({ onLogout }) => {
           </button>
         </div>
       </header>
-
       <div style={styles.content}>
         {message && (
           <div style={{
@@ -228,7 +220,6 @@ const DashboardEtudiant = ({ onLogout }) => {
             {message}
           </div>
         )}
-
         <div style={styles.horizontalCardContainer}>
           {/* Carte des demandes d'attestation avec scroll */}
           <div style={styles.card}>
@@ -262,6 +253,7 @@ const DashboardEtudiant = ({ onLogout }) => {
                             Annuler
                           </button>
                         )}
+                        {/* Bouton "Refaire la demande" supprimé */}
                       </div>
                     </li>
                   ))}
@@ -269,7 +261,6 @@ const DashboardEtudiant = ({ onLogout }) => {
               )}
             </div>
           </div>
-
           {/* Carte de création de nouvelle demande */}
           <div style={styles.card}>
             <div style={styles.cardHeader}>
@@ -288,7 +279,7 @@ const DashboardEtudiant = ({ onLogout }) => {
                     <option value="">-- Sélectionnez --</option>
                     {attestationTypes.map(type => (
                       <option key={type} value={type} disabled={!canRequestAttestation(type)}>
-                        {type} {!canRequestAttestation(type) && "(Déjà demandé)"}
+                        {type} {!canRequestAttestation(type) && "(Demande en attente)"}
                       </option>
                     ))}
                   </select>
@@ -303,7 +294,6 @@ const DashboardEtudiant = ({ onLogout }) => {
               </form>
             </div>
           </div>
-
           {/* Carte du dossier physique */}
           <div style={styles.card}>
             <div style={styles.cardHeader}>
@@ -337,7 +327,6 @@ const DashboardEtudiant = ({ onLogout }) => {
                     </div>
                     {renderFileLinks(dossier)}
                   </div>
-
                   {editMode && (
                     <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #eee' }}>
                       <h4 style={{ margin: '0 0 15px 0', fontSize: '16px' }}>Modifier le dossier</h4>
@@ -355,7 +344,6 @@ const DashboardEtudiant = ({ onLogout }) => {
                             <option value="master">Master</option>
                           </select>
                         </div>
-
                         <div style={styles.fileUploadGroup}>
                           {['carte_identite', 'diplome', 'releve_notes', 'doc_sante'].map((field) => (
                             <label key={field} style={styles.fileUploadLabel}>
@@ -374,7 +362,6 @@ const DashboardEtudiant = ({ onLogout }) => {
                             </label>
                           ))}
                         </div>
-
                         <div style={styles.formActions}>
                           <button style={styles.submitButton} type="submit">
                             Mettre à jour
@@ -408,7 +395,6 @@ const DashboardEtudiant = ({ onLogout }) => {
                         <option value="master">Master</option>
                       </select>
                     </div>
-
                     <div style={styles.fileUploadGroup}>
                       {['carte_identite', 'diplome', 'releve_notes', 'doc_sante'].map((field) => (
                         <label key={field} style={styles.fileUploadLabel}>
@@ -428,7 +414,6 @@ const DashboardEtudiant = ({ onLogout }) => {
                         </label>
                       ))}
                     </div>
-
                     <button style={{...styles.submitButton, ...styles.importantButton}} type="submit">
                       Créer le dossier
                     </button>

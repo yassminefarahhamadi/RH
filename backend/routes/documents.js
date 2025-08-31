@@ -4,6 +4,10 @@ const db = require('../db');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const sendEmail = require('../utils/mailer'); // 🔔 Import mailer
+require('dotenv').config(); // 🔔 Charger .env
+
+const ADMIN_EMAIL = process.env.ADMIN_ETUDES_EMAIL; // Email admin études
 
 // Configuration Multer pour uploads
 const storage = multer.diskStorage({
@@ -17,7 +21,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// Fonction pour récupérer la date au fuseau tunisien (format YYYY-MM-DD)
+// Fonction pour récupérer la date au fuseau tunisien
 const getTunisianDate = () => {
   const now = new Date();
   now.setHours(now.getHours() + 1);
@@ -28,28 +32,19 @@ const getTunisianDate = () => {
 const deleteOldFiles = async (docId) => {
   try {
     const [rows] = await db.query('SELECT * FROM documents WHERE id = ?', [docId]);
-    if (rows.length === 0) return;
-
+    if (!rows.length) return;
     const doc = rows[0];
-    const files = [
-      doc.carte_identite,
-      doc.diplome,
-      doc.releve_notes,
-      doc.doc_sante
-    ].filter(Boolean);
-
+    const files = [doc.carte_identite, doc.diplome, doc.releve_notes, doc.doc_sante].filter(Boolean);
     files.forEach(file => {
       const filePath = path.join(__dirname, '../uploads', file);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     });
   } catch (err) {
     console.error('Error deleting old files:', err);
   }
 };
 
-// GET toutes les demandes avec infos utilisateur (hors dossiers physiques)
+// GET toutes les demandes hors dossiers physiques
 router.get('/', async (req, res) => {
   try {
     const [rows] = await db.query(
@@ -66,7 +61,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET tous les dossiers physiques avec infos utilisateur
+// GET tous les dossiers physiques
 router.get('/dossiers/physiques', async (req, res) => {
   try {
     const [rows] = await db.query(
@@ -83,7 +78,7 @@ router.get('/dossiers/physiques', async (req, res) => {
   }
 });
 
-// GET demandes d’un utilisateur (toutes, y compris dossiers physiques)
+// GET demandes d’un utilisateur
 router.get('/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
@@ -104,7 +99,7 @@ router.post('/demande', async (req, res) => {
     const { user_id, title } = req.body;
 
     const [existing] = await db.query(
-      'SELECT * FROM documents WHERE user_id = ? AND title = ? AND statut IN ("en_attente", "approuvé")',
+      'SELECT * FROM documents WHERE user_id = ? AND title = ? AND statut IN ("en_attente", "validée")',
       [user_id, title]
     );
 
@@ -119,7 +114,31 @@ router.post('/demande', async (req, res) => {
       [user_id, title, 'en_attente', dateDemande]
     );
 
-    res.status(201).json({ message: 'Demande envoyée' });
+    // 🔔 Envoyer notification à l'étudiant
+    const [userRows] = await db.query('SELECT email, name FROM users WHERE id = ?', [user_id]);
+    if (userRows.length) {
+      const user = userRows[0];
+      const subjectStudent = `Votre demande "${title}" a été envoyée`;
+      const htmlStudent = `
+        <p>Bonjour ${user.name},</p>
+        <p>Votre demande "${title}" a été enregistrée et est en attente de traitement.</p>
+        <p>Cordialement,<br>Service Etudes</p>
+      `;
+      sendEmail(user.email, subjectStudent, htmlStudent);
+
+      // 🔔 Envoyer notification à l'admin d'études
+      if (ADMIN_EMAIL) {
+        const subjectAdmin = `Nouvelle demande d'attestation de ${user.name}`;
+        const htmlAdmin = `
+          <p>Bonjour,</p>
+          <p>L'étudiant <strong>${user.name}</strong> a soumis une demande d'attestation : <strong>${title}</strong>.</p>
+          <p>Connectez-vous au dashboard pour traiter la demande.</p>
+        `;
+        sendEmail(ADMIN_EMAIL, subjectAdmin, htmlAdmin);
+      }
+    }
+
+    res.status(201).json({ message: 'Demande envoyée et notifications envoyées' });
   } catch (err) {
     console.error('Erreur:', err);
     res.status(500).json({ message: 'Erreur serveur' });
@@ -132,13 +151,8 @@ router.delete('/:id', async (req, res) => {
     const { id } = req.params;
     const [rows] = await db.query('SELECT * FROM documents WHERE id = ?', [id]);
 
-    if (rows.length === 0) {
-      return res.status(404).json({ message: 'Demande non trouvée' });
-    }
-
-    if (rows[0].statut !== 'en_attente') {
-      return res.status(400).json({ message: 'Seules les demandes en attente peuvent être annulées' });
-    }
+    if (!rows.length) return res.status(404).json({ message: 'Demande non trouvée' });
+    if (rows[0].statut !== 'en_attente') return res.status(400).json({ message: 'Seules les demandes en attente peuvent être annulées' });
 
     await db.query('DELETE FROM documents WHERE id = ?', [id]);
     res.json({ message: 'Demande annulée' });
@@ -163,9 +177,7 @@ router.post('/dossier', upload.fields([
       [user_id]
     );
 
-    if (existing.length > 0) {
-      return res.status(400).json({ message: 'Vous avez déjà un dossier physique. Utilisez la modification.' });
-    }
+    if (existing.length > 0) return res.status(400).json({ message: 'Dossier physique déjà existant' });
 
     const dateDemande = getTunisianDate();
 
@@ -205,12 +217,9 @@ router.put('/:id', upload.fields([
     const { niveau_etude } = req.body;
 
     const [rows] = await db.query('SELECT * FROM documents WHERE id = ?', [id]);
-    if (rows.length === 0) {
-      return res.status(404).json({ message: 'Dossier non trouvé' });
-    }
+    if (!rows.length) return res.status(404).json({ message: 'Dossier non trouvé' });
 
     const updateData = { niveau_etude, date_demande: getTunisianDate() };
-
     if (req.files.carte_identite) {
       await deleteOldFiles(id);
       updateData.carte_identite = req.files.carte_identite[0].filename;
@@ -227,33 +236,36 @@ router.put('/:id', upload.fields([
   }
 });
 
-// Mettre à jour le statut d’une demande (accepter/refuser)
-// Autorise aussi la mise à jour des dossiers physiques
+// PUT mettre à jour le statut d’une demande et envoyer notification email
 router.put('/:id/statut', async (req, res) => {
   const { id } = req.params;
   const { statut } = req.body;
 
-  // Accept only 'validée', 'refusée' or 'en_attente'
   if (!['validée', 'refusée', 'en_attente'].includes(statut)) {
     return res.status(400).json({ message: 'Statut invalide' });
   }
 
   try {
     const [rows] = await db.query('SELECT * FROM documents WHERE id = ?', [id]);
-    if (rows.length === 0) {
-      return res.status(404).json({ message: 'Demande non trouvée' });
+    if (!rows.length) return res.status(404).json({ message: 'Demande non trouvée' });
+
+    const document = rows[0];
+    await db.query('UPDATE documents SET statut = ? WHERE id = ?', [statut, id]);
+
+    // 🔔 Envoi email à l'étudiant
+    const [userRows] = await db.query('SELECT email, name FROM users WHERE id = ?', [document.user_id]);
+    if (userRows.length) {
+      const user = userRows[0];
+      const subject = `Votre demande "${document.title}" a été ${statut}`;
+      const html = `
+        <p>Bonjour ${user.name},</p>
+        <p>Votre demande "${document.title}" a été <strong>${statut}</strong> par l'administration.</p>
+        <p>Cordialement,<br>Service Etudes</p>
+      `;
+      sendEmail(user.email, subject, html);
     }
 
-    const [result] = await db.query(
-      'UPDATE documents SET statut = ? WHERE id = ?',
-      [statut, id]
-    );
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: 'Demande non trouvée' });
-    }
-
-    res.json({ message: `Demande ${statut}` });
+    res.json({ message: `Demande ${statut} et email envoyé` });
   } catch (err) {
     console.error('Erreur mise à jour statut', err);
     res.status(500).json({ message: 'Erreur serveur' });
