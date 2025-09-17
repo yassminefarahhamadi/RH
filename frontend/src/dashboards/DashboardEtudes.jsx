@@ -11,6 +11,7 @@ function DashboardAdminEtudiant({ onLogout }) {
   const [vue, setVue] = useState('demandes'); // 'demandes' or 'dossiers'
   const [pageDemandes, setPageDemandes] = useState(1);
   const [pageDossiers, setPageDossiers] = useState(1);
+  const [selectedDossier, setSelectedDossier] = useState(null); // Pour afficher les détails IA
   const itemsPerPage = 5;
 
   const fetchDemandes = async () => {
@@ -64,6 +65,30 @@ function DashboardAdminEtudiant({ onLogout }) {
     }
   };
 
+  const handleAIDecision = async (id, statut) => {
+    if (window.confirm(`Voulez-vous suivre la suggestion de l'IA et ${statut === 'validée' ? 'valider' : 'refuser'} ce dossier?`)) {
+      await handleDecision(id, statut);
+    }
+  };
+
+  const handleAIVerification = async (id) => {
+    try {
+      setMessage('🔍 Vérification IA en cours...');
+      const res = await axios.post(`http://localhost:5000/api/documents/${id}/verify-ai`);
+      
+      if (res.data.success) {
+        setMessage('✅ Vérification IA terminée');
+        // Recharger les données pour afficher les nouveaux résultats
+        fetchDossiersPhysiques();
+      } else {
+        setMessage('❌ Erreur lors de la vérification IA');
+      }
+    } catch (err) {
+      console.error('Erreur vérification IA', err);
+      setMessage('❌ Erreur lors de la vérification IA');
+    }
+  };
+
   const formatDate = dateStr => dateStr?.split('T')[0] || '';
 
   const renderFiles = doc => (
@@ -111,6 +136,130 @@ function DashboardAdminEtudiant({ onLogout }) {
     </div>
   );
 
+  // Fonction pour afficher les résultats de l'analyse IA
+  const renderAIVerification = (doc) => {
+    if (!doc.ai_verification) return null;
+    
+    try {
+      const aiData = JSON.parse(doc.ai_verification);
+      return (
+        <div style={{ marginTop: '10px', padding: '10px', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+          <h4 style={{ margin: '0 0 10px 0', fontSize: '14px' }}>Vérification IA:</h4>
+          {Object.entries(aiData).map(([docType, result]) => (
+            <div key={docType} style={{ 
+              marginBottom: '8px', 
+              padding: '5px', 
+              backgroundColor: result.isValid ? '#e8f5e9' : '#ffebee',
+              borderRadius: '3px'
+            }}>
+              <strong>{docType}:</strong> {result.isValid ? '✅ Valide' : '❌ Problèmes détectés'}
+              {result.issues && result.issues.length > 0 && (
+                <ul style={{ margin: '5px 0', paddingLeft: '15px' }}>
+                  {result.issues.map((issue, idx) => (
+                    <li key={idx}>{issue}</li>
+                  ))}
+                </ul>
+              )}
+              {result.confidence > 0 && (
+                <div>Confiance OCR: {result.confidence.toFixed(1)}%</div>
+              )}
+            </div>
+          ))}
+          <button 
+            onClick={() => setSelectedDossier(doc)}
+            style={{ 
+              marginTop: '10px', 
+              padding: '5px 10px', 
+              backgroundColor: '#2196f3', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: '4px', 
+              cursor: 'pointer',
+              fontSize: '12px'
+            }}
+          >
+            Voir détails complets
+          </button>
+        </div>
+      );
+    } catch (e) {
+      console.error('Erreur parsing AI verification', e);
+      return null;
+    }
+  };
+
+  // Fonction pour afficher les boutons d'action avec suggestion IA
+  const renderAIActionButtons = (doc) => {
+    if (doc.statut?.toLowerCase().trim() !== 'en_attente') return null;
+    
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+        {doc.ai_suggestion === 'suggestion_validation' && (
+          <button
+            onClick={() => handleAIDecision(doc.id, 'validée')}
+            style={{ 
+              backgroundColor: '#4caf50', 
+              color: 'white', 
+              border: 'none', 
+              padding: '6px 12px', 
+              borderRadius: 6, 
+              cursor: 'pointer',
+              fontSize: '12px'
+            }}
+          >
+            ✅ Valider (suggestion IA)
+          </button>
+        )}
+        {doc.ai_suggestion === 'suggestion_rejet' && (
+          <button
+            onClick={() => handleAIDecision(doc.id, 'refusée')}
+            style={{ 
+              backgroundColor: '#f44336', 
+              color: 'white', 
+              border: 'none', 
+              padding: '6px 12px', 
+              borderRadius: 6, 
+              cursor: 'pointer',
+              fontSize: '12px'
+            }}
+          >
+            ❌ Refuser (suggestion IA)
+          </button>
+        )}
+        <div style={{ display: 'flex', gap: '5px' }}>
+          <button
+            onClick={() => handleDecision(doc.id, 'validée')}
+            style={{ 
+              backgroundColor: '#4caf50', 
+              color: 'white', 
+              border: 'none', 
+              padding: '6px 12px', 
+              borderRadius: 6, 
+              cursor: 'pointer',
+              fontSize: '12px'
+            }}
+          >
+            Valider
+          </button>
+          <button
+            onClick={() => handleDecision(doc.id, 'refusée')}
+            style={{ 
+              backgroundColor: '#f44336', 
+              color: 'white', 
+              border: 'none', 
+              padding: '6px 12px', 
+              borderRadius: 6, 
+              cursor: 'pointer',
+              fontSize: '12px'
+            }}
+          >
+            Refuser
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   const renderStatut = statut => {
     if (!statut) return '';
     const s = statut.toLowerCase().trim();
@@ -153,6 +302,73 @@ function DashboardAdminEtudiant({ onLogout }) {
     backgroundColor: '#ddd',
     color: '#999',
     cursor: 'not-allowed',
+  };
+
+  // Modale pour afficher les détails de l'analyse IA
+  const AIDetailsModal = ({ dossier, onClose }) => {
+    if (!dossier || !dossier.ai_verification) return null;
+    
+    const aiData = JSON.parse(dossier.ai_verification);
+    
+    return (
+      <div style={styles.modalOverlay} onClick={onClose}>
+        <div style={styles.modalContent} onClick={e => e.stopPropagation()}>
+          <div style={styles.modalHeader}>
+            <h3>Détails de l'analyse IA</h3>
+            <button onClick={onClose} style={styles.closeButton}>×</button>
+          </div>
+          <div style={styles.modalBody}>
+            <p><strong>Étudiant:</strong> {dossier.user_name}</p>
+            <p><strong>Niveau d'étude:</strong> {dossier.niveau_etude}</p>
+            <p><strong>Suggestion IA:</strong> 
+              <span style={{ 
+                color: dossier.ai_suggestion === 'suggestion_validation' ? '#4caf50' : '#f44336',
+                fontWeight: 'bold'
+              }}>
+                {dossier.ai_suggestion === 'suggestion_validation' ? 'Validation recommandée' : 'Rejet recommandé'}
+              </span>
+            </p>
+            
+            <h4>Analyse détaillée par document:</h4>
+            {Object.entries(aiData).map(([docType, result]) => (
+              <div key={docType} style={{ 
+                marginBottom: '15px', 
+                padding: '10px', 
+                backgroundColor: result.isValid ? '#e8f5e9' : '#ffebee',
+                borderRadius: '5px'
+              }}>
+                <h5 style={{ margin: '0 0 10px 0' }}>{docType.toUpperCase()}</h5>
+                <p><strong>Statut:</strong> {result.isValid ? '✅ Valide' : '❌ Invalide'}</p>
+                {result.confidence > 0 && (
+                  <p><strong>Confiance OCR:</strong> {result.confidence.toFixed(1)}%</p>
+                )}
+                {result.issues && result.issues.length > 0 && (
+                  <div>
+                    <strong>Problèmes détectés:</strong>
+                    <ul>
+                      {result.issues.map((issue, idx) => (
+                        <li key={idx}>{issue}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {result.details && (
+                  <div>
+                    <strong>Détails techniques:</strong>
+                    <pre style={{ fontSize: '12px', overflow: 'auto' }}>
+                      {JSON.stringify(result.details, null, 2)}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          <div style={styles.modalFooter}>
+            <button onClick={onClose} style={styles.closeButton}>Fermer</button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -296,7 +512,7 @@ function DashboardAdminEtudiant({ onLogout }) {
         {vue === 'demandes' && (
           <section style={{ backgroundColor: 'white', borderRadius: 12, boxShadow: '0 5px 15px rgba(0,0,0,0.05)', padding: 20, marginBottom: 30 }}>
             <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
-              <h3 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>📄 Liste des demandes d’attestations</h3>
+              <h3 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>📄 Liste des demandes d'attestations</h3>
               <div
                 style={{
                   backgroundColor: '#e0e0e0',
@@ -318,13 +534,13 @@ function DashboardAdminEtudiant({ onLogout }) {
               {loadingDemandes ? (
                 <p>Chargement...</p>
               ) : currentDemandes.length === 0 ? (
-                <p style={{ fontStyle: 'italic', textAlign: 'center' }}>Aucune demande d’attestation pour le moment.</p>
+                <p style={{ fontStyle: 'italic', textAlign: 'center' }}>Aucune demande d'attestation pour le moment.</p>
               ) : (
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ backgroundColor: '#f9f9f9' }}>
                       <th style={{ padding: 12, borderBottom: '2px solid #ddd', textAlign: 'left' }}>Étudiant</th>
-                      <th style={{ padding: 12, borderBottom: '2px solid #ddd', textAlign: 'left' }}>Téléphone</th>
+                      <th style={{ padding: 12, borderBottom: '2px solid #ddd', textAlign: 'left' }}>Type</th>
                       <th style={{ padding: 12, borderBottom: '2px solid #ddd', textAlign: 'left' }}>Date de demande</th>
                       <th style={{ padding: 12, borderBottom: '2px solid #ddd', textAlign: 'left' }}>Statut</th>
                       <th style={{ padding: 12, borderBottom: '2px solid #ddd', textAlign: 'left' }}>Actions</th>
@@ -410,12 +626,14 @@ function DashboardAdminEtudiant({ onLogout }) {
               ) : (
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
-                    <tr style={{ backgroundColor: '##f9f9f9' }}>
+                    <tr style={{ backgroundColor: '#f9f9f9' }}>
                       <th style={{ padding: 12, borderBottom: '2px solid #ddd', textAlign: 'left' }}>Étudiant</th>
                       <th style={{ padding: 12, borderBottom: '2px solid #ddd', textAlign: 'left' }}>Niveau d'étude</th>
                       <th style={{ padding: 12, borderBottom: '2px solid #ddd', textAlign: 'left' }}>Date de demande</th>
                       <th style={{ padding: 12, borderBottom: '2px solid #ddd', textAlign: 'left' }}>Statut</th>
+                      <th style={{ padding: 12, borderBottom: '2px solid #ddd', textAlign: 'left' }}>Suggestion IA</th>
                       <th style={{ padding: 12, borderBottom: '2px solid #ddd', textAlign: 'left' }}>Fichiers</th>
+                      <th style={{ padding: 12, borderBottom: '2px solid #ddd', textAlign: 'left' }}>Vérification IA</th>
                       <th style={{ padding: 12, borderBottom: '2px solid #ddd', textAlign: 'left' }}>Actions</th>
                     </tr>
                   </thead>
@@ -430,26 +648,39 @@ function DashboardAdminEtudiant({ onLogout }) {
                         <td style={{ padding: 12 }}>{d.niveau_etude || '-'}</td>
                         <td style={{ padding: 12 }}>{formatDate(d.date_demande)}</td>
                         <td style={{ padding: 12, textTransform: 'capitalize' }}>{renderStatut(d.statut)}</td>
+                        <td style={{ padding: 12 }}>
+                          {d.ai_suggestion === 'suggestion_validation' && (
+                            <span style={{ color: '#4caf50', fontWeight: 'bold' }}>✅ Validation</span>
+                          )}
+                          {d.ai_suggestion === 'suggestion_rejet' && (
+                            <span style={{ color: '#f44336', fontWeight: 'bold' }}>❌ Rejet</span>
+                          )}
+                          {!d.ai_suggestion && (
+                            <span style={{ color: '#999' }}>Non analysé</span>
+                          )}
+                        </td>
                         <td style={{ padding: 12 }}>{renderFiles(d)}</td>
                         <td style={{ padding: 12 }}>
-                          {d.statut?.toLowerCase().trim() === 'en_attente' ? (
-                            <>
-                              <button
-                                onClick={() => handleDecision(d.id, 'validée')}
-                                style={{ backgroundColor: '#4caf50', color: 'white', border: 'none', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', marginRight: 8 }}
-                              >
-                                Valider
-                              </button>
-                              <button
-                                onClick={() => handleDecision(d.id, 'refusée')}
-                                style={{ backgroundColor: '#f44336', color: 'white', border: 'none', padding: '6px 12px', borderRadius: 6, cursor: 'pointer' }}
-                              >
-                                Refuser
-                              </button>
-                            </>
-                          ) : (
-                            <em style={{ color: '#999', fontStyle: 'italic' }}>Action non disponible</em>
-                          )}
+                          {renderAIVerification(d)}
+                        </td>
+                        <td style={{ padding: 12 }}>
+                          {/* Bouton de vérification IA manuelle */}
+                          <button
+                            onClick={() => handleAIVerification(d.id)}
+                            style={{ 
+                              backgroundColor: '#2196f3', 
+                              color: 'white', 
+                              border: 'none', 
+                              padding: '6px 12px', 
+                              borderRadius: 6, 
+                              cursor: 'pointer',
+                              marginBottom: '5px',
+                              fontSize: '12px'
+                            }}
+                          >
+                            🔍 Vérifier avec IA
+                          </button>
+                          {renderAIActionButtons(d)}
                         </td>
                       </tr>
                     ))}
@@ -471,6 +702,14 @@ function DashboardAdminEtudiant({ onLogout }) {
           </section>
         )}
       </main>
+
+      {/* Modale pour afficher les détails de l'analyse IA */}
+      {selectedDossier && (
+        <AIDetailsModal 
+          dossier={selectedDossier} 
+          onClose={() => setSelectedDossier(null)} 
+        />
+      )}
     </div>
   );
 }
@@ -484,6 +723,50 @@ const styles = {
     borderRadius: 4,
     fontSize: 14,
     transition: 'all 0.2s',
+  },
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    padding: '20px',
+    borderRadius: '8px',
+    maxWidth: '90%',
+    maxHeight: '90%',
+    overflow: 'auto',
+    width: '600px',
+  },
+  modalHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '15px',
+    borderBottom: '1px solid #eee',
+    paddingBottom: '10px',
+  },
+  modalBody: {
+    marginBottom: '15px',
+  },
+  modalFooter: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+  },
+  closeButton: {
+    backgroundColor: '#f44336',
+    color: 'white',
+    border: 'none',
+    padding: '8px 16px',
+    borderRadius: '4px',
+    cursor: 'pointer',
   },
 };
 
