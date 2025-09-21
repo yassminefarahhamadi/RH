@@ -198,7 +198,7 @@ router.post('/dossier', upload.fields([
   }
 });
 
-// ♻️ PUT modifier un dossier physique
+// ♻️ PUT modifier un dossier physique (CORRIGÉ)
 router.put('/:id', upload.fields([
   { name: 'carte_identite', maxCount: 1 },
   { name: 'diplome', maxCount: 1 },
@@ -212,14 +212,44 @@ router.put('/:id', upload.fields([
     const [rows] = await db.query('SELECT * FROM documents WHERE id = ?', [id]);
     if (!rows.length) return res.status(404).json({ message: 'Dossier non trouvé' });
 
+    const oldDoc = rows[0];
     const updateData = { niveau_etude, date_demande: getTunisianDate() };
 
-    if (req.files.carte_identite) updateData.carte_identite = req.files.carte_identite[0].filename;
-    if (req.files.diplome) updateData.diplome = req.files.diplome[0].filename;
-    if (req.files.releve_notes) updateData.releve_notes = req.files.releve_notes[0].filename;
-    if (req.files.doc_sante) updateData.doc_sante = req.files.doc_sante[0].filename;
+    // Conserver les anciens fichiers si aucun nouveau n'est fourni
+    updateData.carte_identite = req.files.carte_identite 
+      ? req.files.carte_identite[0].filename 
+      : oldDoc.carte_identite;
+    
+    updateData.diplome = req.files.diplome 
+      ? req.files.diplome[0].filename 
+      : oldDoc.diplome;
+    
+    updateData.releve_notes = req.files.releve_notes 
+      ? req.files.releve_notes[0].filename 
+      : oldDoc.releve_notes;
+    
+    updateData.doc_sante = req.files.doc_sante 
+      ? req.files.doc_sante[0].filename 
+      : oldDoc.doc_sante;
 
-    await deleteOldFiles(id);
+    // Supprimer seulement les anciens fichiers qui sont remplacés
+    if (req.files.carte_identite && oldDoc.carte_identite) {
+      const oldFilePath = path.join(__dirname, '../uploads', oldDoc.carte_identite);
+      if (fs.existsSync(oldFilePath)) fs.unlinkSync(oldFilePath);
+    }
+    if (req.files.diplome && oldDoc.diplome) {
+      const oldFilePath = path.join(__dirname, '../uploads', oldDoc.diplome);
+      if (fs.existsSync(oldFilePath)) fs.unlinkSync(oldFilePath);
+    }
+    if (req.files.releve_notes && oldDoc.releve_notes) {
+      const oldFilePath = path.join(__dirname, '../uploads', oldDoc.releve_notes);
+      if (fs.existsSync(oldFilePath)) fs.unlinkSync(oldFilePath);
+    }
+    if (req.files.doc_sante && oldDoc.doc_sante) {
+      const oldFilePath = path.join(__dirname, '../uploads', oldDoc.doc_sante);
+      if (fs.existsSync(oldFilePath)) fs.unlinkSync(oldFilePath);
+    }
+
     await db.query('UPDATE documents SET ? WHERE id = ?', [updateData, id]);
     res.json({ message: 'Dossier mis à jour' });
   } catch (err) {
@@ -283,34 +313,71 @@ router.post('/:id/verify-ai', async (req, res) => {
     }
     
     const aiResults = {};
+    const uploadsDir = path.join(__dirname, '../uploads');
     
     // Vérifier chaque document présent
     if (dossier.carte_identite) {
-      aiResults.carte_identite = await AIOpenSourceVerification.analyzeDocument(
-        path.join(__dirname, '../uploads', dossier.carte_identite),
-        'carte_identite'
-      );
+      const filePath = path.join(uploadsDir, dossier.carte_identite);
+      if (fs.existsSync(filePath)) {
+        aiResults.carte_identite = await AIOpenSourceVerification.analyzeDocument(
+          filePath,
+          'carte_identite'
+        );
+      } else {
+        aiResults.carte_identite = {
+          isValid: false,
+          issues: ['Fichier introuvable'],
+          error: 'Fichier non trouvé sur le serveur'
+        };
+      }
     }
     
     if (dossier.diplome) {
-      aiResults.diplome = await AIOpenSourceVerification.analyzeDocument(
-        path.join(__dirname, '../uploads', dossier.diplome),
-        'diplome'
-      );
+      const filePath = path.join(uploadsDir, dossier.diplome);
+      if (fs.existsSync(filePath)) {
+        aiResults.diplome = await AIOpenSourceVerification.analyzeDocument(
+          filePath,
+          'diplome'
+        );
+      } else {
+        aiResults.diplome = {
+          isValid: false,
+          issues: ['Fichier introuvable'],
+          error: 'Fichier non trouvé sur le serveur'
+        };
+      }
     }
     
     if (dossier.releve_notes) {
-      aiResults.releve_notes = await AIOpenSourceVerification.analyzeDocument(
-        path.join(__dirname, '../uploads', dossier.releve_notes),
-        'releve_notes'
-      );
+      const filePath = path.join(uploadsDir, dossier.releve_notes);
+      if (fs.existsSync(filePath)) {
+        aiResults.releve_notes = await AIOpenSourceVerification.analyzeDocument(
+          filePath,
+          'releve_notes'
+        );
+      } else {
+        aiResults.releve_notes = {
+          isValid: false,
+          issues: ['Fichier introuvable'],
+          error: 'Fichier non trouvé sur le serveur'
+        };
+      }
     }
     
     if (dossier.doc_sante) {
-      aiResults.doc_sante = await AIOpenSourceVerification.analyzeDocument(
-        path.join(__dirname, '../uploads', dossier.doc_sante),
-        'doc_sante'
-      );
+      const filePath = path.join(uploadsDir, dossier.doc_sante);
+      if (fs.existsSync(filePath)) {
+        aiResults.doc_sante = await AIOpenSourceVerification.analyzeDocument(
+          filePath,
+          'doc_sante'
+        );
+      } else {
+        aiResults.doc_sante = {
+          isValid: false,
+          issues: ['Fichier introuvable'],
+          error: 'Fichier non trouvé sur le serveur'
+        };
+      }
     }
     
     // Déterminer la suggestion globale
@@ -318,7 +385,7 @@ router.post('/:id/verify-ai', async (req, res) => {
     let hasCriticalIssue = false;
     
     Object.values(aiResults).forEach(result => {
-      if (!result.isValid) {
+      if (result && !result.isValid) {
         allValid = false;
         if (result.issues && result.issues.some(issue => 
           issue.includes('non pertinent') || issue.includes('Aucun texte significatif'))) {

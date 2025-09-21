@@ -123,10 +123,10 @@ const DashboardEtudiant = ({ onLogout }) => {
 
   const renderFileLinks = (doc) => (
     <div style={styles.documentFiles}>
-      {doc.carte_identite && <a href={`http://localhost:5000/uploads/${doc.carte_identite}`} target="_blank" rel="noreferrer" style={styles.fileLink}> Carte ID</a>}
-      {doc.diplome && <a href={`http://localhost:5000/uploads/${doc.diplome}`} target="_blank" rel="noreferrer" style={styles.fileLink}> Diplôme</a>}
-      {doc.releve_notes && <a href={`http://localhost:5000/uploads/${doc.releve_notes}`} target="_blank" rel="noreferrer" style={styles.fileLink}> Relevé</a>}
-      {doc.doc_sante && <a href={`http://localhost:5000/uploads/${doc.doc_sante}`} target="_blank" rel="noreferrer" style={styles.fileLink}> Santé</a>}
+      {doc.carte_identite && <a href={`http://localhost:5000/api/files/${doc.carte_identite}`} target="_blank" rel="noreferrer" style={styles.fileLink}> Carte ID</a>}
+      {doc.diplome && <a href={`http://localhost:5000/api/files/${doc.diplome}`} target="_blank" rel="noreferrer" style={styles.fileLink}> Diplôme</a>}
+      {doc.releve_notes && <a href={`http://localhost:5000/api/files/${doc.releve_notes}`} target="_blank" rel="noreferrer" style={styles.fileLink}> Relevé</a>}
+      {doc.doc_sante && <a href={`http://localhost:5000/api/files/${doc.doc_sante}`} target="_blank" rel="noreferrer" style={styles.fileLink}> Santé</a>}
     </div>
   );
 
@@ -145,7 +145,6 @@ const DashboardEtudiant = ({ onLogout }) => {
 
   return (
     <div style={styles.container}>
-      {/* Header identique à DashboardAdmin */}
       <header
         style={{
           background: "linear-gradient(135deg, rgb(216, 95, 95) 0%, #b71c1c 100%)",
@@ -165,7 +164,6 @@ const DashboardEtudiant = ({ onLogout }) => {
             alignItems: "center",
           }}
         >
-          {/* Logo + Welcome message */}
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             <img
               src="/logo.png"
@@ -184,7 +182,6 @@ const DashboardEtudiant = ({ onLogout }) => {
               </span>
             </h2>
           </div>
-          {/* Logout button */}
           <button
             onClick={onLogout}
             style={{
@@ -221,7 +218,6 @@ const DashboardEtudiant = ({ onLogout }) => {
           </div>
         )}
         <div style={styles.horizontalCardContainer}>
-          {/* Carte des demandes d'attestation avec scroll */}
           <div style={styles.card}>
             <div style={styles.cardHeader}>
               <h3 style={styles.cardTitle}>📋 Demandes d'Attestation</h3>
@@ -253,7 +249,6 @@ const DashboardEtudiant = ({ onLogout }) => {
                             Annuler
                           </button>
                         )}
-                        {/* Bouton "Refaire la demande" supprimé */}
                       </div>
                     </li>
                   ))}
@@ -261,7 +256,6 @@ const DashboardEtudiant = ({ onLogout }) => {
               )}
             </div>
           </div>
-          {/* Carte de création de nouvelle demande */}
           <div style={styles.card}>
             <div style={styles.cardHeader}>
               <h3 style={styles.cardTitle}>✏️ Nouvelle Demande</h3>
@@ -294,7 +288,6 @@ const DashboardEtudiant = ({ onLogout }) => {
               </form>
             </div>
           </div>
-          {/* Carte du dossier physique */}
           <div style={styles.card}>
             <div style={styles.cardHeader}>
               <h3 style={styles.cardTitle}>📁 Dossier Physique</h3>
