@@ -11,7 +11,7 @@ const loginStyles = {
     fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
   },
   card: {
-    background: 'white',
+    background: 'white', // this is the plain white "header blanc"
     borderRadius: '16px',
     boxShadow: '0 8px 32px rgba(211,47,47,0.15)',
     padding: '40px 32px 32px 32px',

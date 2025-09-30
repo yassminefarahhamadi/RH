@@ -6,60 +6,53 @@ function DashboardRH({ onLogout }) {
   const [bloc, setBloc] = useState('');
   const [poste, setPoste] = useState('');
   const [conges, setConges] = useState([]);
-  const [vue, setVue] = useState('conges'); // 'conges' ou 'employes'
+  const [vue, setVue] = useState('conges');
 
-  // États pour la pagination
   const [pageEmp, setPageEmp] = useState(1);
   const [pageConges, setPageConges] = useState(1);
-  const itemsPerPage = 5; // éléments par page
+  const itemsPerPage = 5;
 
   useEffect(() => {
     fetchEmployes();
     fetchConges();
-    // eslint-disable-next-line
   }, []);
 
-  // Charger employés avec filtres
   const fetchEmployes = async () => {
     try {
       const res = await axios.get('http://localhost:5000/api/users/filter', {
         params: { bloc, poste },
       });
       setEmployes(res.data);
-      setPageEmp(1); // reset page au changement de filtre
+      setPageEmp(1);
     } catch (err) {
-      console.error('Erreur chargement employés', err);
+      console.error(err);
       setEmployes([]);
     }
   };
 
-  // Charger demandes congés
   const fetchConges = async () => {
     try {
       const res = await axios.get('http://localhost:5000/api/conges');
       setConges(res.data);
       setPageConges(1);
     } catch (err) {
-      console.error('Erreur chargement congés', err);
+      console.error(err);
       setConges([]);
     }
   };
 
-  // Modifier statut congé
   const handleStatusChange = async (id, statut) => {
     try {
       await axios.put(`http://localhost:5000/api/conges/${id}/status`, { statut });
       fetchConges();
     } catch (err) {
-      console.error('Erreur mise à jour statut congé', err);
+      console.error(err);
       alert('Erreur lors de la mise à jour du statut');
     }
   };
 
-  // Format date ISO simple
   const formatDate = (isoDate) => (isoDate ? isoDate.split('T')[0] : '');
 
-  // Couleurs selon statut congé
   const getStatusStyle = (statut) => {
     const base = {
       padding: '6px 12px',
@@ -79,27 +72,22 @@ function DashboardRH({ onLogout }) {
     }
   };
 
-  // Pagination employés
   const indexLastEmp = pageEmp * itemsPerPage;
   const indexFirstEmp = indexLastEmp - itemsPerPage;
   const currentEmployes = employes.slice(indexFirstEmp, indexLastEmp);
   const totalPagesEmp = Math.ceil(employes.length / itemsPerPage);
 
-  // Pagination congés
   const indexLastConges = pageConges * itemsPerPage;
   const indexFirstConges = indexLastConges - itemsPerPage;
   const currentConges = conges.slice(indexFirstConges, indexLastConges);
   const totalPagesConges = Math.ceil(conges.length / itemsPerPage);
 
-  // Navigation pages employés
   const prevPageEmp = () => setPageEmp((p) => Math.max(p - 1, 1));
   const nextPageEmp = () => setPageEmp((p) => Math.min(p + 1, totalPagesEmp));
 
-  // Navigation pages congés
   const prevPageConges = () => setPageConges((p) => Math.max(p - 1, 1));
   const nextPageConges = () => setPageConges((p) => Math.min(p + 1, totalPagesConges));
 
-  // Styles pagination
   const paginationStyle = {
     marginTop: '10px',
     display: 'flex',
@@ -127,7 +115,6 @@ function DashboardRH({ onLogout }) {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f5f5f5', fontFamily: 'Arial, sans-serif' }}>
-      {/* Header avec le style de DashboardAdmin */}
       <header
         style={{
           background: "linear-gradient(135deg, rgb(216, 95, 95) 0%, #b71c1c 100%)",
@@ -147,7 +134,6 @@ function DashboardRH({ onLogout }) {
             alignItems: "center",
           }}
         >
-          {/* Logo + Bonjour, name */}
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             <img
               src="/logo.png"
@@ -166,8 +152,6 @@ function DashboardRH({ onLogout }) {
               </span>
             </h2>
           </div>
-
-          {/* Logout button */}
           <button
             onClick={onLogout}
             style={{
@@ -194,7 +178,6 @@ function DashboardRH({ onLogout }) {
         </div>
       </header>
 
-      {/* Boutons de sélection */}
       <div style={{ maxWidth: '1200px', margin: '0 auto 20px', padding: '0 20px', display: 'flex', gap: '15px' }}>
         <button
           onClick={() => setVue('conges')}
@@ -231,7 +214,6 @@ function DashboardRH({ onLogout }) {
       </div>
 
       <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 20px 40px' }}>
-        {/* Liste employés */}
         {vue === 'employes' && (
           <>
             <section
@@ -247,7 +229,7 @@ function DashboardRH({ onLogout }) {
                 flexWrap: 'wrap',
               }}
             >
-              <h3 style={{ flexBasis: '100%', marginBottom: '10px' }}>🔍 Filtrer les employés</h3>
+              <h3 style={{ flexBasis: '100%', marginBottom: '10px' }}>Filtrer les employés</h3>
               <label style={{ flex: '1 1 150px' }}>
                 Bloc :
                 <input
@@ -294,7 +276,7 @@ function DashboardRH({ onLogout }) {
                 marginBottom: '15px',
               }}
             >
-              <h3>👥 Liste des employés</h3>
+              <h3>Liste des employés</h3>
               <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
                 <thead>
                   <tr style={{ backgroundColor: '#f9f9f9' }}>
@@ -323,8 +305,6 @@ function DashboardRH({ onLogout }) {
                   )}
                 </tbody>
               </table>
-
-              {/* Pagination employés */}
               <div style={paginationStyle}>
                 <button onClick={prevPageEmp} disabled={pageEmp === 1} style={pageEmp === 1 ? buttonDisabledStyle : buttonStyle}>
                   Précédent
@@ -340,10 +320,9 @@ function DashboardRH({ onLogout }) {
           </>
         )}
 
-        {/* Liste congés */}
         {vue === 'conges' && (
           <section style={{ backgroundColor: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 5px 15px rgba(0,0,0,0.05)' }}>
-            <h3>📅 Liste des demandes de congés</h3>
+            <h3>Liste des demandes de congés</h3>
             <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
               <thead>
                 <tr style={{ backgroundColor: '#f9f9f9' }}>
@@ -417,8 +396,6 @@ function DashboardRH({ onLogout }) {
                 )}
               </tbody>
             </table>
-
-            {/* Pagination congés */}
             <div style={paginationStyle}>
               <button onClick={prevPageConges} disabled={pageConges === 1} style={pageConges === 1 ? buttonDisabledStyle : buttonStyle}>
                 Précédent

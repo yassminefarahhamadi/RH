@@ -5,39 +5,39 @@ const fs = require('fs');
 const path = require('path');
 const pdfParse = require('pdf-parse');
 
-// Configuration des mots-clés spécifiques aux documents tunisiens
+
 const tunisianKeywords = {
   carte_identite: [
-    // Français
+    
     'république', 'tunisienne', 'identité', 'nom', 'prénom', 'naissance', 
     'nationalité', 'carte', 'id', 'numéro', 'lieu', 'date', 'adresse',
-    // Arabe
+    
     'الجمهورية', 'التونسية', 'هوية', 'اسم', 'لقب', 'الميلاد', 'جنسية', 
     'بطاقة', 'تعريف', 'رقم', 'مكان', 'تاريخ', 'عنوان', 'تونس',
     // Format du numéro CIN (8 chiffres)
     /\b\d{8}\b/
   ],
   dossier_medical: [
-    // Français
+   
     'médecin', 'santé', 'vaccination', 'certificat', 'médical', 'health', 
     'doctor', 'patient', 'diagnostic', 'traitement', 'ordonnance',
-    // Arabe
+    
     'طبيب', 'صحة', 'تلقيح', 'شهادة', 'طبي', 'صحي', 'مستشفى', 'مريض',
     'تشخيص', 'علاج', 'وصفة', 'عافية'
   ],
   diplome: [
-    // Français
+    
     'diplôme', 'université', 'république', 'licence', 'master', 'baccalauréat', 
     'diploma', 'degree', 'certificat', 'éducation', 'études',
-    // Arabe
+    
     'دبلوم', 'شهادة', 'جامعة', 'جمهورية', 'إجازة', 'ماستر', 'باكالوريا',
     'تونس', 'التربية', 'التعليم', 'العاليمي', 'الدراسة', 'النجاح', 'امتياز'
   ],
   releve_notes: [
-    // Français
+   
     'notes', 'moyenne', 'examen', 'semestre', 'module', 'bulletin', 'note', 
     'score', 'résultat', 'appréciation', 'coefficient',
-    // Arabe
+    
     'نقاط', 'معدل', 'امتحان', 'فصل', 'وحدة', 'كشف', 'نتيجة', 'علامة',
     'الجامعي', 'التربية', 'التعليم', 'العاليمي', 'الدرجات', 'المادة'
   ]
@@ -49,7 +49,7 @@ class TunisianDocumentAnalyzer {
     this.tfidf = new natural.TfIdf();
   }
 
-  // Analyser un document
+  
   async analyzeDocument(filePath, documentType) {
     try {
       const results = {
@@ -63,20 +63,20 @@ class TunisianDocumentAnalyzer {
         details: {}
       };
 
-      // Vérifier si le fichier existe
+      
       if (!fs.existsSync(filePath)) {
         results.isValid = false;
         results.issues.push('Fichier introuvable');
         return results;
       }
 
-      // Prétraiter l'image (uniquement pour les images)
+      
       let processedFilePath = filePath;
       if (!filePath.toLowerCase().endsWith('.pdf')) {
         processedFilePath = await this.preprocessImage(filePath);
       }
 
-      // 1. Vérifier la qualité de l'image (uniquement pour les images)
+      
       if (!filePath.toLowerCase().endsWith('.pdf')) {
         const imageAnalysis = await this.analyzeImageQuality(processedFilePath);
         results.details.imageQuality = imageAnalysis;
@@ -93,11 +93,11 @@ class TunisianDocumentAnalyzer {
           results.issues.push('Image floue');
         }
       } else {
-        // Pour les PDF, on ajoute une indication
+        
         results.details.imageQuality = { isPdf: true, note: 'Analyse de qualité non applicable aux PDF' };
       }
 
-      // 2. Extraire le texte avec support de l'arabe et du français
+      
       const textAnalysis = await this.extractText(processedFilePath);
       results.details.textAnalysis = textAnalysis;
       
@@ -105,12 +105,12 @@ class TunisianDocumentAnalyzer {
         results.textFound = true;
         results.confidence = textAnalysis.confidence;
         
-        // 3. Vérifier la pertinence du contenu
+        
         const relevance = this.checkRelevance(textAnalysis.text, documentType);
         results.isRelevant = relevance.isRelevant;
         results.details.relevance = relevance;
         
-        // 4. Validation spécifique aux documents tunisiens
+       
         const validation = this.validateTunisianDocument(textAnalysis.text, documentType);
         results.details.validation = validation;
         
@@ -133,7 +133,7 @@ class TunisianDocumentAnalyzer {
         results.issues.push('Aucun texte significatif détecté');
       }
 
-      // Nettoyer le fichier traité temporaire
+      
       if (processedFilePath !== filePath && fs.existsSync(processedFilePath)) {
         fs.unlinkSync(processedFilePath);
       }
@@ -150,30 +150,30 @@ class TunisianDocumentAnalyzer {
     }
   }
 
-  // Prétraiter l'image pour améliorer l'OCR
+  
   async preprocessImage(imagePath) {
     try {
       const image = await Jimp.read(imagePath);
       
-      // Améliorations pour les documents tunisiens
-      image
-        .contrast(0.5) // Ajuster le contraste
-        .brightness(0.1) // Ajuster la luminosité
-        .greyscale() // Convertir en niveaux de gris
-        .normalize(); // Normaliser l'image
       
-      // Sauvegarder l'image traitée
+      image
+        .contrast(0.5) 
+        .brightness(0.1) 
+        .greyscale() 
+        .normalize(); 
+      
+      
       const processedPath = path.join(path.dirname(imagePath), 'processed_' + path.basename(imagePath));
       await image.writeAsync(processedPath);
       
       return processedPath;
     } catch (error) {
       console.error('Erreur lors du prétraitement de l\'image:', error);
-      return imagePath; // Retourner le chemin original en cas d'erreur
+      return imagePath; 
     }
   }
 
-  // Analyser la qualité de l'image
+  
   async analyzeImageQuality(imagePath) {
     try {
       const image = await Jimp.read(imagePath);
@@ -186,7 +186,7 @@ class TunisianDocumentAnalyzer {
         height: image.bitmap.height
       };
 
-      // Calculer la luminosité moyenne
+      
       let totalBrightness = 0;
       image.scan(0, 0, image.bitmap.width, image.bitmap.height, (x, y, idx) => {
         const red = image.bitmap.data[idx];
@@ -197,9 +197,8 @@ class TunisianDocumentAnalyzer {
       });
 
       results.brightness = totalBrightness / (image.bitmap.width * image.bitmap.height);
-      results.isDark = results.brightness < 50; // Seuil de luminosité
-
-      // Calculer le contraste (approximation simple)
+      results.isDark = results.brightness < 50; 
+      
       const samplePoints = [
         {x: 10, y: 10}, 
         {x: image.bitmap.width - 10, y: 10},
@@ -222,7 +221,7 @@ class TunisianDocumentAnalyzer {
       });
 
       results.contrast = maxBrightness - minBrightness;
-      results.isBlurry = results.contrast < 50; // Seuil de contraste
+      results.isBlurry = results.contrast < 50; 
 
       return results;
     } catch (error) {
@@ -237,38 +236,38 @@ class TunisianDocumentAnalyzer {
     }
   }
 
-  // Extraire le texte avec Tesseract (images) ou pdf-parse (PDF)
+  
   async extractText(filePath) {
     try {
-      // Vérifier si le fichier existe
+      
       if (!fs.existsSync(filePath)) {
         return { text: '', confidence: 0 };
       }
 
-      // Si c'est un PDF, utiliser pdf-parse
+      
       if (filePath.toLowerCase().endsWith('.pdf')) {
         try {
           const dataBuffer = fs.readFileSync(filePath);
           const data = await pdfParse(dataBuffer);
           return {
             text: data.text,
-            confidence: 80 // Valeur par défaut pour les PDF
+            confidence: 80 
           };
         } catch (pdfError) {
           console.error('Erreur lecture PDF:', pdfError);
           return { text: '', confidence: 0 };
         }
       } else {
-        // Pour les images, utiliser Tesseract avec les langues arabe et française
+        
         const { data } = await Tesseract.recognize(filePath, 'ara+fra', {
           logger: message => {
             if (message.status === 'recognizing text') {
               console.log(`Progression OCR: ${message.progress * 100}%`);
             }
           },
-          // Configuration pour les documents
-          tessedit_pageseg_mode: 6, // Mode de segmentation pour document unique
-          tessedit_ocr_engine_mode: 3 // Mode de moteur OCR par défaut
+         
+          tessedit_pageseg_mode: 6, 
+          tessedit_ocr_engine_mode: 3 
         });
         
         return {
@@ -282,7 +281,7 @@ class TunisianDocumentAnalyzer {
     }
   }
 
-  // Vérifier la pertinence du contenu
+  
   checkRelevance(text, documentType) {
     const lowerText = text.toLowerCase();
     const keywords = tunisianKeywords[documentType] || [];
@@ -290,19 +289,19 @@ class TunisianDocumentAnalyzer {
     
     keywords.forEach(keyword => {
       if (typeof keyword === 'string') {
-        // Vérifier à la fois la version arabe et française
+        
         if (lowerText.includes(keyword)) {
           foundKeywords.push(keyword);
         }
       } else if (keyword instanceof RegExp) {
-        // Vérifier les expressions régulières (comme le format CIN)
+        
         if (keyword.test(text)) {
           foundKeywords.push(keyword.toString());
         }
       }
     });
     
-    // Si au moins 2 mots-clés sont trouvés, le document est considéré comme pertinent
+    
     const isRelevant = foundKeywords.length >= 2;
     
     return {
@@ -315,11 +314,11 @@ class TunisianDocumentAnalyzer {
     };
   }
 
-  // Validation spécifique aux documents tunisiens
+  
   validateTunisianDocument(text, documentType) {
     const patterns = {
       carte_identite: {
-        pattern: /\b\d{8}\b/, // Format du numéro CIN (8 chiffres)
+        pattern: /\b\d{8}\b/, 
         reason: "Numéro CIN non trouvé"
       },
       diplome: {

@@ -10,7 +10,7 @@ require('dotenv').config();
 
 const ADMIN_EMAIL = process.env.ADMIN_ETUDES_EMAIL;
 
-// 📂 Configuration Multer (sécurité améliorée)
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, 'uploads/'),
   filename: (req, file, cb) => {
@@ -21,14 +21,14 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// 🕒 Fonction date fuseau Tunis
+
 const getTunisianDate = () => {
   const now = new Date();
   now.setHours(now.getHours() + 1);
   return now.toISOString().split('T')[0];
 };
 
-// 🗑️ Supprimer les anciens fichiers d'un document
+
 const deleteOldFiles = async (docId) => {
   try {
     const [rows] = await db.query('SELECT * FROM documents WHERE id = ?', [docId]);
@@ -39,15 +39,15 @@ const deleteOldFiles = async (docId) => {
       const filePath = path.join(__dirname, '../uploads', file);
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
-        console.log(`🗑️ Fichier supprimé : ${file}`);
+        console.log(` Fichier supprimé : ${file}`);
       }
     });
   } catch (err) {
-    console.error('❌ Erreur lors de la suppression des anciens fichiers:', err);
+    console.error(' Erreur lors de la suppression des anciens fichiers:', err);
   }
 };
 
-// 📄 GET toutes les demandes hors dossiers physiques
+
 router.get('/', async (req, res) => {
   try {
     const [rows] = await db.query(
@@ -59,12 +59,12 @@ router.get('/', async (req, res) => {
     );
     res.json(rows);
   } catch (err) {
-    console.error('❌ Erreur chargement demandes:', err.message);
+    console.error(' Erreur chargement demandes:', err.message);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
   }
 });
 
-// 📄 GET dossiers physiques
+
 router.get('/dossiers/physiques', async (req, res) => {
   try {
     const [rows] = await db.query(
@@ -76,15 +76,15 @@ router.get('/dossiers/physiques', async (req, res) => {
        WHERE d.title = 'Dossier physique'
        ORDER BY d.date_demande DESC`
     );
-    console.log('📦 Résultat dossiers physiques:', rows);
+    console.log(' Résultat dossiers physiques:', rows);
     res.json(rows);
   } catch (err) {
-    console.error('❌ Erreur chargement dossiers physiques:', err.message);
+    console.error(' Erreur chargement dossiers physiques:', err.message);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
   }
 });
 
-// 👤 GET demandes d'un utilisateur
+
 router.get('/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
@@ -94,12 +94,12 @@ router.get('/:userId', async (req, res) => {
     );
     res.json(rows);
   } catch (err) {
-    console.error('❌ Erreur récupération demandes utilisateur:', err.message);
+    console.error(' Erreur récupération demandes utilisateur:', err.message);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
   }
 });
 
-// ➕ POST nouvelle demande simple
+
 router.post('/demande', async (req, res) => {
   try {
     const { user_id, title } = req.body;
@@ -119,7 +119,7 @@ router.post('/demande', async (req, res) => {
       [user_id, title, 'en_attente', getTunisianDate()]
     );
 
-    // 📧 Notifier l'étudiant + admin
+   
     const [userRows] = await db.query('SELECT email, name FROM users WHERE id = ?', [user_id]);
     if (userRows.length) {
       const user = userRows[0];
@@ -133,12 +133,12 @@ router.post('/demande', async (req, res) => {
 
     res.status(201).json({ message: 'Demande enregistrée avec succès' });
   } catch (err) {
-    console.error('❌ Erreur création demande:', err.message);
+    console.error(' Erreur création demande:', err.message);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
   }
 });
 
-// ❌ DELETE annuler une demande
+
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -152,12 +152,12 @@ router.delete('/:id', async (req, res) => {
     await db.query('DELETE FROM documents WHERE id = ?', [id]);
     res.json({ message: 'Demande annulée' });
   } catch (err) {
-    console.error('❌ Erreur suppression demande:', err.message);
+    console.error(' Erreur suppression demande:', err.message);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
   }
 });
 
-// 🆕 POST créer un dossier physique
+
 router.post('/dossier', upload.fields([
   { name: 'carte_identite', maxCount: 1 },
   { name: 'diplome', maxCount: 1 },
@@ -193,12 +193,11 @@ router.post('/dossier', upload.fields([
 
     res.status(201).json({ message: 'Dossier envoyé' });
   } catch (err) {
-    console.error('❌ Erreur création dossier:', err.message);
+    console.error(' Erreur création dossier:', err.message);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
   }
 });
 
-// ♻️ PUT modifier un dossier physique (CORRIGÉ)
 router.put('/:id', upload.fields([
   { name: 'carte_identite', maxCount: 1 },
   { name: 'diplome', maxCount: 1 },
@@ -215,7 +214,7 @@ router.put('/:id', upload.fields([
     const oldDoc = rows[0];
     const updateData = { niveau_etude, date_demande: getTunisianDate() };
 
-    // Conserver les anciens fichiers si aucun nouveau n'est fourni
+    
     updateData.carte_identite = req.files.carte_identite 
       ? req.files.carte_identite[0].filename 
       : oldDoc.carte_identite;
@@ -232,7 +231,7 @@ router.put('/:id', upload.fields([
       ? req.files.doc_sante[0].filename 
       : oldDoc.doc_sante;
 
-    // Supprimer seulement les anciens fichiers qui sont remplacés
+    
     if (req.files.carte_identite && oldDoc.carte_identite) {
       const oldFilePath = path.join(__dirname, '../uploads', oldDoc.carte_identite);
       if (fs.existsSync(oldFilePath)) fs.unlinkSync(oldFilePath);
@@ -253,12 +252,12 @@ router.put('/:id', upload.fields([
     await db.query('UPDATE documents SET ? WHERE id = ?', [updateData, id]);
     res.json({ message: 'Dossier mis à jour' });
   } catch (err) {
-    console.error('❌ Erreur mise à jour dossier:', err.message);
+    console.error(' Erreur mise à jour dossier:', err.message);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
   }
 });
 
-// ✏️ PUT mise à jour statut avec notification
+
 router.put('/:id/statut', async (req, res) => {
   try {
     const { id } = req.params;
@@ -273,7 +272,7 @@ router.put('/:id/statut', async (req, res) => {
 
     await db.query('UPDATE documents SET statut = ? WHERE id = ?', [statut, id]);
 
-    // 📧 Notifier l'étudiant
+    
     const [userRows] = await db.query('SELECT email, name FROM users WHERE id = ?', [rows[0].user_id]);
     if (userRows.length) {
       sendEmail(userRows[0].email, `Votre demande "${rows[0].title}" a été ${statut}`,
@@ -282,17 +281,17 @@ router.put('/:id/statut', async (req, res) => {
 
     res.json({ message: `Demande ${statut} et email envoyé` });
   } catch (err) {
-    console.error('❌ Erreur mise à jour statut:', err.message);
+    console.error(' Erreur mise à jour statut:', err.message);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
   }
 });
 
-// 🔍 POST déclencher manuellement la vérification IA
+
 router.post('/:id/verify-ai', async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Récupérer le dossier
+    
     const [rows] = await db.query(
       `SELECT d.*, u.name AS user_name, u.email AS user_email 
        FROM documents d
@@ -307,7 +306,7 @@ router.post('/:id/verify-ai', async (req, res) => {
     
     const dossier = rows[0];
     
-    // Vérifier que c'est un dossier physique
+    
     if (dossier.title !== 'Dossier physique') {
       return res.status(400).json({ success: false, message: 'Seuls les dossiers physiques peuvent être vérifiés par IA' });
     }
@@ -315,7 +314,7 @@ router.post('/:id/verify-ai', async (req, res) => {
     const aiResults = {};
     const uploadsDir = path.join(__dirname, '../uploads');
     
-    // Vérifier chaque document présent
+    
     if (dossier.carte_identite) {
       const filePath = path.join(uploadsDir, dossier.carte_identite);
       if (fs.existsSync(filePath)) {
@@ -380,7 +379,7 @@ router.post('/:id/verify-ai', async (req, res) => {
       }
     }
     
-    // Déterminer la suggestion globale
+    
     let allValid = true;
     let hasCriticalIssue = false;
     
@@ -398,10 +397,10 @@ router.post('/:id/verify-ai', async (req, res) => {
     if (hasCriticalIssue) {
       aiSuggestion = 'suggestion_rejet';
     } else if (!allValid) {
-      aiSuggestion = null; // Aucune suggestion claire
+      aiSuggestion = null; 
     }
     
-    // Mettre à jour la base de données
+    
     await db.query(
       'UPDATE documents SET ai_verification = ?, ai_suggestion = ? WHERE id = ?',
       [JSON.stringify(aiResults), aiSuggestion, id]
@@ -414,7 +413,7 @@ router.post('/:id/verify-ai', async (req, res) => {
     });
     
   } catch (err) {
-    console.error('❌ Erreur vérification IA:', err.message);
+    console.error(' Erreur vérification IA:', err.message);
     res.status(500).json({ success: false, message: 'Erreur lors de la vérification IA', error: err.message });
   }
 });

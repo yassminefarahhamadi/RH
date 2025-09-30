@@ -10,11 +10,10 @@ const motifsConges = [
   'Autre',
 ];
 
-// ⬇️ formatDate safely formats a date without timezone issues
 const formatDate = (dateStr) => {
   const date = new Date(dateStr);
   if (isNaN(date)) return '';
-  return date.toLocaleDateString('en-CA'); // Format: YYYY-MM-DD
+  return date.toLocaleDateString('en-CA');
 };
 
 const DashboardEmploye = ({ onLogout }) => {
@@ -36,7 +35,7 @@ const DashboardEmploye = ({ onLogout }) => {
       setConges(formatted);
     } catch (err) {
       console.error('Erreur chargement congés', err);
-      setMessage('❌ Erreur lors du chargement des congés');
+      setMessage('Erreur lors du chargement des congés');
     }
   }, [id]);
 
@@ -52,12 +51,12 @@ const DashboardEmploye = ({ onLogout }) => {
     e.preventDefault();
 
     if (new Date(form.date_fin) < new Date(form.date_debut)) {
-      setMessage('❌ La date de fin doit être postérieure à la date de début.');
+      setMessage('La date de fin doit être postérieure à la date de début.');
       return;
     }
 
     if (!form.motif) {
-      setMessage('❌ Veuillez sélectionner un motif de congé.');
+      setMessage('Veuillez sélectionner un motif de congé.');
       return;
     }
 
@@ -66,16 +65,15 @@ const DashboardEmploye = ({ onLogout }) => {
         user_id: id,
         ...form,
       });
-      setMessage('✅ Demande envoyée');
+      setMessage('Demande envoyée');
       setForm({ date_debut: '', date_fin: '', motif: '' });
       fetchConges();
     } catch (err) {
       console.error(err);
-      setMessage('❌ Erreur lors de la demande');
+      setMessage('Erreur lors de la demande');
     }
   };
 
-  // ✅ Texte en couleur (vert, rouge, jaune)
   const getStatusStyle = (statut) => {
     switch (statut) {
       case 'accepte':
@@ -109,18 +107,17 @@ const DashboardEmploye = ({ onLogout }) => {
             marginBottom: '30px',
             textAlign: 'center',
             fontWeight: '500',
-            backgroundColor: message.startsWith('✅') ? '#e8f5e9' : '#ffebee',
-            color: message.startsWith('✅') ? '#2e7d32' : '#c62828',
-            borderLeft: `4px solid ${message.startsWith('✅') ? '#4caf50' : '#f44336'}`,
+            backgroundColor: message.startsWith('Demande envoyée') ? '#e8f5e9' : '#ffebee',
+            color: message.startsWith('Demande envoyée') ? '#2e7d32' : '#c62828',
+            borderLeft: `4px solid ${message.startsWith('Demande envoyée') ? '#4caf50' : '#f44336'}`,
           }}>
             {message}
           </div>
         )}
 
         <div style={{ display: 'flex', gap: '30px', flexWrap: 'wrap' }}>
-          {/* Formulaire de demande */}
           <section style={{ backgroundColor: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 5px 15px rgba(0,0,0,0.05)', maxWidth: '400px', flex: '1 1 350px', display: 'flex', flexDirection: 'column' }}>
-            <h3>➕ Nouvelle demande de congé</h3>
+            <h3>Nouvelle demande de congé</h3>
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px', flexGrow: 1 }}>
               <div>
                 <label>Date début :</label>
@@ -141,9 +138,8 @@ const DashboardEmploye = ({ onLogout }) => {
             </form>
           </section>
 
-          {/* Historique des congés */}
           <section style={{ flex: '2 1 600px', backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 5px 15px rgba(0,0,0,0.05)', padding: '20px' }}>
-            <h3>📄 Historique de mes congés</h3>
+            <h3>Historique de mes congés</h3>
             <div style={{ overflowY: 'auto', marginTop: '15px', maxHeight: '400px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>

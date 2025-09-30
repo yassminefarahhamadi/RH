@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
-const sendEmail = require('../utils/mailer'); // notre mailer
+const sendEmail = require('../utils/mailer'); 
 
 // GET – Liste de toutes les demandes de congés avec infos employé
 router.get('/', async (req, res) => {
@@ -43,19 +43,19 @@ router.post('/', async (req, res) => {
   }
 
   try {
-    // 1️⃣ Insérer le congé
+    
     await db.query(
       'INSERT INTO conges (user_id, date_debut, date_fin, motif, statut, created_at) VALUES (?, ?, ?, ?, "en_attente", NOW())',
       [user_id, date_debut, date_fin, motif]
     );
 
-    // 2️⃣ Récupérer infos de l'employé
+    
     const [rows] = await db.query('SELECT name, email FROM users WHERE id = ?', [user_id]);
     const employe = rows[0];
 
     if (employe) {
-      // 3️⃣ Préparer le mail pour l'admin RH
-      const subject = "📢 Nouvelle demande de congé à valider";
+      
+      const subject = " Nouvelle demande de congé à valider";
       const html = `
         <p>Bonjour Admin RH,</p>
         <p>L'employé <b>${employe.name}</b> a soumis une nouvelle demande de congé :</p>
@@ -68,7 +68,7 @@ router.post('/', async (req, res) => {
         <p>Cordialement,<br>Votre application RH</p>
       `;
 
-      // 4️⃣ Envoi du mail à l'admin RH
+      
       await sendEmail(process.env.EMAIL_ADMIN_RH, subject, html);
     }
 
@@ -79,7 +79,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-// PUT – Mettre à jour le statut d’un congé (valider/refuser) + envoi email
+
 router.put('/:id/status', async (req, res) => {
   const { id } = req.params;
   const { statut } = req.body;
@@ -89,7 +89,7 @@ router.put('/:id/status', async (req, res) => {
   }
 
   try {
-    // 1️⃣ Mise à jour du statut
+    
     const [result] = await db.query(
       'UPDATE conges SET statut = ? WHERE id = ?',
       [statut, id]
@@ -99,7 +99,7 @@ router.put('/:id/status', async (req, res) => {
       return res.status(404).json({ message: 'Demande de congé non trouvée' });
     }
 
-    // 2️⃣ Récupérer infos employé pour envoi mail
+    
     const [rows] = await db.query(
       `SELECT u.email, u.name, c.date_debut, c.date_fin, c.motif
        FROM conges c
@@ -111,8 +111,8 @@ router.put('/:id/status', async (req, res) => {
     const employe = rows[0];
     if (employe) {
       const subject = statut === 'accepte' 
-        ? "✅ Votre congé a été accepté" 
-        : "❌ Votre congé a été refusé";
+        ? " Votre congé a été accepté" 
+        : " Votre congé a été refusé";
 
       const html = `
         <p>Bonjour ${employe.name},</p>
@@ -121,7 +121,7 @@ router.put('/:id/status', async (req, res) => {
         <p>Cordialement,<br>Service RH</p>
       `;
 
-      // 3️⃣ Envoi du mail à l'employé
+      
       await sendEmail(employe.email, subject, html);
     }
 

@@ -2,7 +2,7 @@ const User = require('../models/User');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
-// 🔐 LOGIN
+//  LOGIN
 exports.login = async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password)
@@ -34,7 +34,7 @@ exports.login = async (req, res) => {
   }
 };
 
-// 📝 SIGN UP
+//  SIGN UP
 exports.signup = async (req, res) => {
   const { name, email, password, role, type_poste, blocAffecte } = req.body;
 

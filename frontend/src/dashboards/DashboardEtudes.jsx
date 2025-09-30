@@ -8,10 +8,10 @@ function DashboardAdminEtudiant({ onLogout }) {
   const [loadingDossiers, setLoadingDossiers] = useState(true);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-  const [vue, setVue] = useState('demandes'); // 'demandes' or 'dossiers'
+  const [vue, setVue] = useState('demandes'); 
   const [pageDemandes, setPageDemandes] = useState(1);
   const [pageDossiers, setPageDossiers] = useState(1);
-  const [selectedDossier, setSelectedDossier] = useState(null); // Pour afficher les détails IA
+  const [selectedDossier, setSelectedDossier] = useState(null); 
   const itemsPerPage = 5;
 
   const fetchDemandes = async () => {
@@ -52,7 +52,7 @@ function DashboardAdminEtudiant({ onLogout }) {
   const handleDecision = async (id, statut) => {
     try {
       await axios.put(`http://localhost:5000/api/documents/${id}/statut`, { statut });
-      setMessage(`✅ Demande ${statut}`);
+      setMessage(` Demande ${statut}`);
       setDemandes(oldDemandes =>
         oldDemandes.map(item => (item.id === id ? { ...item, statut } : item))
       );
@@ -61,7 +61,7 @@ function DashboardAdminEtudiant({ onLogout }) {
       );
     } catch (err) {
       console.error('Erreur mise à jour statut', err);
-      setMessage('❌ Erreur lors de la mise à jour du statut');
+      setMessage(' Erreur lors de la mise à jour du statut');
     }
   };
 
@@ -73,19 +73,19 @@ function DashboardAdminEtudiant({ onLogout }) {
 
   const handleAIVerification = async (id) => {
     try {
-      setMessage('🔍 Vérification IA en cours...');
+      setMessage(' Vérification IA en cours...');
       const res = await axios.post(`http://localhost:5000/api/documents/${id}/verify-ai`);
       
       if (res.data.success) {
-        setMessage('✅ Vérification IA terminée');
+        setMessage(' Vérification IA terminée');
         // Recharger les données pour afficher les nouveaux résultats
         fetchDossiersPhysiques();
       } else {
-        setMessage('❌ Erreur lors de la vérification IA');
+        setMessage(' Erreur lors de la vérification IA');
       }
     } catch (err) {
       console.error('Erreur vérification IA', err);
-      setMessage('❌ Erreur lors de la vérification IA');
+      setMessage(' Erreur lors de la vérification IA');
     }
   };
 
@@ -152,7 +152,7 @@ function DashboardAdminEtudiant({ onLogout }) {
               backgroundColor: result.isValid ? '#e8f5e9' : '#ffebee',
               borderRadius: '3px'
             }}>
-              <strong>{docType}:</strong> {result.isValid ? '✅ Valide' : '❌ Problèmes détectés'}
+              <strong>{docType}:</strong> {result.isValid ? ' Valide' : ' Problèmes détectés'}
               {result.issues && result.issues.length > 0 && (
                 <ul style={{ margin: '5px 0', paddingLeft: '15px' }}>
                   {result.issues.map((issue, idx) => (
@@ -207,7 +207,7 @@ function DashboardAdminEtudiant({ onLogout }) {
               fontSize: '12px'
             }}
           >
-            ✅ Valider (suggestion IA)
+             Valider (suggestion IA)
           </button>
         )}
         {doc.ai_suggestion === 'suggestion_rejet' && (
@@ -223,7 +223,7 @@ function DashboardAdminEtudiant({ onLogout }) {
               fontSize: '12px'
             }}
           >
-            ❌ Refuser (suggestion IA)
+             Refuser (suggestion IA)
           </button>
         )}
         <div style={{ display: 'flex', gap: '5px' }}>
@@ -338,7 +338,7 @@ function DashboardAdminEtudiant({ onLogout }) {
                 borderRadius: '5px'
               }}>
                 <h5 style={{ margin: '0 0 10px 0' }}>{docType.toUpperCase()}</h5>
-                <p><strong>Statut:</strong> {result.isValid ? '✅ Valide' : '❌ Invalide'}</p>
+                <p><strong>Statut:</strong> {result.isValid ? ' Valide' : ' Invalide'}</p>
                 {result.confidence > 0 && (
                   <p><strong>Confiance OCR:</strong> {result.confidence.toFixed(1)}%</p>
                 )}
@@ -512,7 +512,7 @@ function DashboardAdminEtudiant({ onLogout }) {
         {vue === 'demandes' && (
           <section style={{ backgroundColor: 'white', borderRadius: 12, boxShadow: '0 5px 15px rgba(0,0,0,0.05)', padding: 20, marginBottom: 30 }}>
             <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
-              <h3 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>📄 Liste des demandes d'attestations</h3>
+              <h3 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}> Liste des demandes d'attestations</h3>
               <div
                 style={{
                   backgroundColor: '#e0e0e0',
@@ -600,7 +600,7 @@ function DashboardAdminEtudiant({ onLogout }) {
         {vue === 'dossiers' && (
           <section style={{ backgroundColor: 'white', borderRadius: 12, boxShadow: '0 5px 15px rgba(0,0,0,0.05)', padding: 20 }}>
             <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
-              <h3 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>📁 Liste des dossiers physiques</h3>
+              <h3 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}> Liste des dossiers physiques</h3>
               <div
                 style={{
                   backgroundColor: '#e0e0e0',
@@ -650,10 +650,10 @@ function DashboardAdminEtudiant({ onLogout }) {
                         <td style={{ padding: 12, textTransform: 'capitalize' }}>{renderStatut(d.statut)}</td>
                         <td style={{ padding: 12 }}>
                           {d.ai_suggestion === 'suggestion_validation' && (
-                            <span style={{ color: '#4caf50', fontWeight: 'bold' }}>✅ Validation</span>
+                            <span style={{ color: '#4caf50', fontWeight: 'bold' }}> Validation</span>
                           )}
                           {d.ai_suggestion === 'suggestion_rejet' && (
-                            <span style={{ color: '#f44336', fontWeight: 'bold' }}>❌ Rejet</span>
+                            <span style={{ color: '#f44336', fontWeight: 'bold' }}> Rejet</span>
                           )}
                           {!d.ai_suggestion && (
                             <span style={{ color: '#999' }}>Non analysé</span>
@@ -678,7 +678,7 @@ function DashboardAdminEtudiant({ onLogout }) {
                               fontSize: '12px'
                             }}
                           >
-                            🔍 Vérifier avec IA
+                             Vérifier avec IA
                           </button>
                           {renderAIActionButtons(d)}
                         </td>

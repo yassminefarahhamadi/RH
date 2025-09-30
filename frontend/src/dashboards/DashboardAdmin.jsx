@@ -31,16 +31,8 @@ const BLOC_AFFECTE_OPTIONS = [
   { value: 'K', label: 'K' },
 ];
 
-// Role color mapping
-const ROLE_COLORS = {
-  admin: { bg: '#d32f2f', text: '#fff' },
-  etudiant: { bg: '#1976d2', text: '#fff' },
-  employe: { bg: '#388e3c', text: '#fff' },
-  admin_rh: { bg: '#f57c00', text: '#fff' },
-  admin_etudes: { bg: '#7b1fa2', text: '#fff' },
-};
+// Supprimer ROLE_COLORS puisque nous ne voulons plus de couleurs
 
-// ✅ Formulaire utilisateur
 const UserForm = ({ user, onSave, onCancel }) => {
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
@@ -186,7 +178,7 @@ function UserList() {
       const res = await axios.get('http://localhost:5000/api/users');
       setUsers(res.data);
     } catch {
-      setMessage('❌ Erreur de récupération des utilisateurs');
+      setMessage('Erreur de récupération des utilisateurs');
     }
   };
 
@@ -197,10 +189,10 @@ function UserList() {
   const handleDelete = async (id) => {
     try {
       await axios.delete(`http://localhost:5000/api/users/${id}`);
-      setMessage('✅ Utilisateur supprimé');
+      setMessage('Utilisateur supprimé');
       fetchUsers();
     } catch {
-      setMessage('❌ Erreur lors de la suppression');
+      setMessage('Erreur lors de la suppression');
     }
   };
 
@@ -218,7 +210,7 @@ function UserList() {
     fetchUsers();
     setViewMode('list');
     setEditingUser(null);
-    setMessage('✅ Utilisateur enregistré');
+    setMessage('Utilisateur enregistré');
   };
 
   const handleCancel = () => {
@@ -226,12 +218,10 @@ function UserList() {
     setEditingUser(null);
   };
 
-  // Get current users for pagination
   const indexOfLastUser = currentPage * usersPerPage;
   const indexOfFirstUser = indexOfLastUser - usersPerPage;
   const currentUsers = users.slice(indexOfFirstUser, indexOfLastUser);
 
-  // Change page
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
   const nextPage = () => {
     if (currentPage < Math.ceil(users.length / usersPerPage)) {
@@ -244,10 +234,7 @@ function UserList() {
     }
   };
 
-  // Function to get role badge style
-  const getRoleBadgeStyle = (role) => {
-    return ROLE_COLORS[role] || { bg: '#616161', text: '#fff' };
-  };
+  // Supprimer getRoleBadgeStyle puisque nous ne voulons plus de couleurs
 
   return (
     <div>
@@ -258,7 +245,7 @@ function UserList() {
             <div style={message.startsWith('✅') ? styles.successMessage : styles.errorMessage}>{message}</div>
           )}
           <button style={styles.addButton} onClick={handleAdd}>
-            ➕ Ajouter un utilisateur
+            Ajouter un utilisateur
           </button>
           
           <div style={styles.tableContainer}>
@@ -282,13 +269,7 @@ function UserList() {
                       <td style={styles.tableCell}>{u.name}</td>
                       <td style={styles.tableCell}>{u.email}</td>
                       <td style={styles.tableCell}>
-                        <span
-                          style={{
-                            ...styles.roleBadge,
-                            backgroundColor: getRoleBadgeStyle(u.role).bg,
-                            color: getRoleBadgeStyle(u.role).text,
-                          }}
-                        >
+                        <span style={styles.roleBadge}>
                           {u.role}
                         </span>
                       </td>
@@ -302,7 +283,6 @@ function UserList() {
               </tbody>
             </table>
             
-            {/* Pagination */}
             {users.length > usersPerPage && (
               <div style={styles.pagination}>
                 <button 
@@ -347,66 +327,57 @@ const DashboardAdmin = ({ onLogout }) => {
 
   return (
     <div style={styles.container}>
-      {/* ✅ HEADER same style as DashboardEmploye */}
-     <header
-  style={{
-    background: "linear-gradient(135deg, rgb(216, 95, 95) 0%, #b71c1c 100%)",
-    color: "white",
-    padding: "20px 0",
-    marginBottom: "30px",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-  }}
->
-  <div
-    style={{
-      width: "95%",
-      maxWidth: "1200px",
-      margin: "0 auto",
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-    }}
-  >
-    {/* ✅ Logo + Bonjour, name */}
-    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-      <img
-        src="/logo.png"
-        alt="Logo"
+      <header
         style={{
-          width: "150px",
-          height: "60px",
-          objectFit: "contain",
-          borderRadius: "8px",
+          background: "linear-gradient(135deg, rgb(216, 95, 95) 0%, #b71c1c 100%)",
+          color: "white",
+          padding: "20px 0",
+          marginBottom: "30px",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
         }}
-      />
-      <h2 style={{ margin: 0 }}>
-        Bonjour,{" "}
-        <span style={{ fontWeight: "600" }}>
-          {localStorage.getItem("name") || "Admin Études"}
-        </span>
-      </h2>
-    </div>
-
-    {/* ✅ Logout button */}
-    <button
-      onClick={onLogout}
-      style={{
-        backgroundColor: "transparent",
-        color: "white",
-        border: "1px solid white",
-        borderRadius: "25px",
-        padding: "8px 16px",
-        cursor: "pointer",
-        fontWeight: "600",
-        transition: "background-color 0.3s, color 0.3s",
-      }}
-    >
-      Déconnexion
-    </button>
-  </div>
-</header>
-
-
+      >
+        <div
+          style={{
+            width: "95%",
+            maxWidth: "1200px",
+            margin: "0 auto",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <img
+              src="/logo.png"
+              alt="Logo"
+              style={{
+                width: "150px",
+                height: "60px",
+                objectFit: "contain",
+                borderRadius: "8px",
+              }}
+            />
+            <h2 style={{ margin: 0 }}>
+              Bonjour, <span style={{ fontWeight: "600" }}>{name}</span>
+            </h2>
+          </div>
+          <button
+            onClick={onLogout}
+            style={{
+              backgroundColor: "transparent",
+              color: "white",
+              border: "1px solid white",
+              borderRadius: 25,
+              padding: "8px 16px",
+              cursor: "pointer",
+              fontWeight: "600",
+              transition: "background-color 0.3s, color 0.3s",
+            }}
+          >
+            Déconnexion
+          </button>
+        </div>
+      </header>
       <main style={styles.content}>
         <UserList />
       </main>
@@ -414,8 +385,6 @@ const DashboardAdmin = ({ onLogout }) => {
   );
 };
 
-
-// Styles
 const styleUserForm = {
   form: { display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 400 },
   label: { display: 'flex', flexDirection: 'column', fontWeight: 600, fontSize: 14, color: '#333' },
@@ -427,140 +396,32 @@ const styleUserForm = {
 
 const styles = {
   container: { minHeight: '100vh', backgroundColor: '#f5f5f5', fontFamily: "'Segoe UI', sans-serif" },
-  header: { background: 'linear-gradient(135deg, rgb(216,95,95), #b71c1c)', color: 'white', padding: '20px 0', marginBottom: 30 },
-  headerContent: { width: '95%', maxWidth: 1200, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  logoAndWelcome: { display: 'flex', alignItems: 'center', gap: 12 },
-  logo: { 
-    width: 150, 
-    height: 60, 
-    backgroundColor: 'white', 
-    borderRadius: 8, 
-    display: 'flex', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    color: '#b71c1c', 
-    fontWeight: 'bold' 
-  },
-  welcomeTitle: { fontWeight: 300, fontSize: 24 },
-  nameHighlight: { fontWeight: 600 },
-  logoutButton: { 
-    backgroundColor: 'transparent', 
-    color: 'white', 
-    border: '1px solid white', 
-    borderRadius: 25, 
-    padding: '8px 16px', 
-    cursor: 'pointer',
-    transition: 'background-color 0.3s'
-  },
   content: { maxWidth: 1200, margin: '0 auto', padding: '0 20px 40px' },
   sectionTitle: { color: '#b71c1c', fontSize: 22, marginBottom: 16 },
-  addButton: { 
-    padding: '10px 20px', 
-    backgroundColor: '#d32f2f', 
-    border: 'none', 
-    borderRadius: 8, 
-    color: 'white', 
-    cursor: 'pointer', 
-    marginBottom: 20,
-    fontWeight: 600
-  },
-  tableContainer: {
-    backgroundColor: 'white',
-    borderRadius: 8,
-    overflow: 'hidden',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-  },
+  addButton: { padding: '10px 20px', backgroundColor: '#d32f2f', border: 'none', borderRadius: 8, color: 'white', cursor: 'pointer', marginBottom: 20, fontWeight: 600 },
+  tableContainer: { backgroundColor: 'white', borderRadius: 8, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' },
   table: { width: '100%', borderCollapse: 'collapse' },
-  tableHeader: { 
-    padding: '14px 15px', 
-    textAlign: 'left', 
-    fontWeight: 600, 
-    color: '#424242', 
-    borderBottom: '2px solid #ddd', 
-    backgroundColor: '#f8f8f8' 
-  },
-  tableRow: { 
-    transition: 'background-color 0.2s ease',
-    '&:hover': {
-      backgroundColor: '#f9f9f9'
-    }
-  },
+  tableHeader: { padding: '14px 15px', textAlign: 'left', fontWeight: 600, color: '#424242', borderBottom: '2px solid #ddd', backgroundColor: '#f8f8f8' },
+  tableRow: { transition: 'background-color 0.2s ease' },
   tableCell: { padding: '12px 15px', color: '#616161', fontSize: 14, borderBottom: '1px solid #eee' },
   roleBadge: { 
     display: 'inline-block', 
     padding: '5px 12px', 
     borderRadius: 20, 
     fontSize: 12, 
-    fontWeight: 600,
-    textTransform: 'capitalize'
+    fontWeight: 600, 
+    textTransform: 'capitalize',
+    backgroundColor: '#f0f0f0', // Couleur neutre
+    color: '#616161' // Couleur de texte neutre
   },
-  editButton: { 
-    backgroundColor: '#1976d2', 
-    color: 'white', 
-    border: 'none', 
-    borderRadius: 6, 
-    padding: '6px 14px', 
-    marginRight: 10, 
-    cursor: 'pointer',
-    fontSize: 13
-  },
-  deleteButton: { 
-    backgroundColor: '#d32f2f', 
-    color: 'white', 
-    border: 'none', 
-    borderRadius: 6, 
-    padding: '6px 14px', 
-    cursor: 'pointer',
-    fontSize: 13
-  },
-  successMessage: { 
-    backgroundColor: '#e8f5e9', 
-    color: '#2e7d32', 
-    borderLeft: '5px solid #4caf50', 
-    padding: 12, 
-    marginBottom: 20,
-    borderRadius: 4
-  },
-  errorMessage: { 
-    backgroundColor: '#ffebee', 
-    color: '#c62828', 
-    borderLeft: '5px solid #f44336', 
-    padding: 12, 
-    marginBottom: 20,
-    borderRadius: 4
-  },
-  pagination: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: '15px',
-    gap: '8px'
-  },
-  paginationButton: {
-    padding: '8px 12px',
-    backgroundColor: '#f0f0f0',
-    border: '1px solid #ddd',
-    borderRadius: 4,
-    cursor: 'pointer',
-    color: '#333'
-  },
-  paginationButtonActive: {
-    padding: '8px 12px',
-    backgroundColor: '#d32f2f',
-    border: '1px solid #d32f2f',
-    borderRadius: 4,
-    cursor: 'pointer',
-    color: 'white',
-    fontWeight: 'bold'
-  },
-  paginationButtonDisabled: {
-    padding: '8px 12px',
-    backgroundColor: '#f0f0f0',
-    border: '1px solid #ddd',
-    borderRadius: 4,
-    color: '#999',
-    cursor: 'not-allowed'
-  }
+  editButton: { backgroundColor: '#1976d2', color: 'white', border: 'none', borderRadius: 6, padding: '6px 14px', marginRight: 10, cursor: 'pointer', fontSize: 13 },
+  deleteButton: { backgroundColor: '#d32f2f', color: 'white', border: 'none', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', fontSize: 13 },
+  successMessage: { backgroundColor: '#e8f5e9', color: '#2e7d32', borderLeft: '5px solid #4caf50', padding: 12, marginBottom: 20, borderRadius: 4 },
+  errorMessage: { backgroundColor: '#ffebee', color: '#c62828', borderLeft: '5px solid #f44336', padding: 12, marginBottom: 20, borderRadius: 4 },
+  pagination: { display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '15px', gap: '8px' },
+  paginationButton: { padding: '8px 12px', backgroundColor: '#f0f0f0', border: '1px solid #ddd', borderRadius: 4, cursor: 'pointer', color: '#333' },
+  paginationButtonActive: { padding: '8px 12px', backgroundColor: '#d32f2f', border: '1px solid #d32f2f', borderRadius: 4, cursor: 'pointer', color: 'white', fontWeight: 'bold' },
+  paginationButtonDisabled: { padding: '8px 12px', backgroundColor: '#f0f0f0', border: '1px solid #ddd', borderRadius: 4, color: '#999', cursor: 'not-allowed' }
 };
 
 export default DashboardAdmin;

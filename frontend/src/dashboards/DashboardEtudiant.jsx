@@ -28,7 +28,7 @@ const DashboardEtudiant = ({ onLogout }) => {
       setDossier(physDossier || null);
     } catch (err) {
       console.error(err);
-      setMessage('❌ Erreur de récupération');
+      setMessage('Erreur de récupération');
     }
   }, [id]);
 
@@ -52,7 +52,7 @@ const DashboardEtudiant = ({ onLogout }) => {
       d.title === newTitle && d.statut === 'en_attente'
     );
     if (existingRequest) {
-      setMessage('⚠️ Vous avez déjà une demande en attente pour ce type d\'attestation');
+      setMessage('Vous avez déjà une demande en attente pour ce type d\'attestation');
       return;
     }
     try {
@@ -60,23 +60,23 @@ const DashboardEtudiant = ({ onLogout }) => {
         user_id: parseInt(id),
         title: newTitle,
       });
-      setMessage('✅ Demande envoyée');
+      setMessage('Demande envoyée');
       setNewTitle('');
       fetchDocuments();
     } catch (err) {
       console.error(err);
-      setMessage('❌ Erreur lors de la demande');
+      setMessage('Erreur lors de la demande');
     }
   };
 
   const cancelDemand = async (demandId) => {
     try {
       await axios.delete(`http://localhost:5000/api/documents/${demandId}`);
-      setMessage('✅ Demande annulée');
+      setMessage('Demande annulée');
       fetchDocuments();
     } catch (err) {
       console.error(err);
-      setMessage('❌ Erreur lors de l\'annulation');
+      setMessage('Erreur lors de l\'annulation');
     }
   };
 
@@ -98,19 +98,19 @@ const DashboardEtudiant = ({ onLogout }) => {
         await axios.put(`http://localhost:5000/api/documents/${dossier.id}`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
-        setMessage('✅ Dossier mis à jour');
+        setMessage('Dossier mis à jour');
       } else {
         await axios.post('http://localhost:5000/api/documents/dossier', formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
-        setMessage('✅ Dossier envoyé');
+        setMessage('Dossier envoyé');
       }
       setFiles({});
       setEditMode(false);
       fetchDocuments();
     } catch (err) {
       console.error(err);
-      setMessage('❌ Erreur lors de l\'envoi');
+      setMessage('Erreur lors de l\'envoi');
     }
   };
 
@@ -123,10 +123,10 @@ const DashboardEtudiant = ({ onLogout }) => {
 
   const renderFileLinks = (doc) => (
     <div style={styles.documentFiles}>
-      {doc.carte_identite && <a href={`http://localhost:5000/api/files/${doc.carte_identite}`} target="_blank" rel="noreferrer" style={styles.fileLink}> Carte ID</a>}
-      {doc.diplome && <a href={`http://localhost:5000/api/files/${doc.diplome}`} target="_blank" rel="noreferrer" style={styles.fileLink}> Diplôme</a>}
-      {doc.releve_notes && <a href={`http://localhost:5000/api/files/${doc.releve_notes}`} target="_blank" rel="noreferrer" style={styles.fileLink}> Relevé</a>}
-      {doc.doc_sante && <a href={`http://localhost:5000/api/files/${doc.doc_sante}`} target="_blank" rel="noreferrer" style={styles.fileLink}> Santé</a>}
+      {doc.carte_identite && <a href={`http://localhost:5000/api/files/${doc.carte_identite}`} target="_blank" rel="noreferrer" style={styles.fileLink}>Carte ID</a>}
+      {doc.diplome && <a href={`http://localhost:5000/api/files/${doc.diplome}`} target="_blank" rel="noreferrer" style={styles.fileLink}>Diplôme</a>}
+      {doc.releve_notes && <a href={`http://localhost:5000/api/files/${doc.releve_notes}`} target="_blank" rel="noreferrer" style={styles.fileLink}>Relevé</a>}
+      {doc.doc_sante && <a href={`http://localhost:5000/api/files/${doc.doc_sante}`} target="_blank" rel="noreferrer" style={styles.fileLink}>Santé</a>}
     </div>
   );
 
@@ -211,8 +211,7 @@ const DashboardEtudiant = ({ onLogout }) => {
         {message && (
           <div style={{
             ...styles.message,
-            ...(message.startsWith('✅') ? styles.successMessage : 
-                message.startsWith('⚠️') ? styles.warningMessage : styles.errorMessage)
+            ...(message.startsWith('Demande envoyée') || message.startsWith('Demande annulée') || message.startsWith('Dossier') ? styles.successMessage : styles.errorMessage)
           }}>
             {message}
           </div>
@@ -220,7 +219,7 @@ const DashboardEtudiant = ({ onLogout }) => {
         <div style={styles.horizontalCardContainer}>
           <div style={styles.card}>
             <div style={styles.cardHeader}>
-              <h3 style={styles.cardTitle}>📋 Demandes d'Attestation</h3>
+              <h3 style={styles.cardTitle}>Demandes d'Attestation</h3>
               <div style={styles.cardCount}>{demandes.length}</div>
             </div>
             <div style={{...styles.cardBody, overflowY: 'auto', maxHeight: '400px'}}>
@@ -258,7 +257,7 @@ const DashboardEtudiant = ({ onLogout }) => {
           </div>
           <div style={styles.card}>
             <div style={styles.cardHeader}>
-              <h3 style={styles.cardTitle}>✏️ Nouvelle Demande</h3>
+              <h3 style={styles.cardTitle}>Nouvelle Demande</h3>
             </div>
             <div style={styles.cardBody}>
               <form onSubmit={handleSimpleSubmit} style={styles.form}>
@@ -290,7 +289,7 @@ const DashboardEtudiant = ({ onLogout }) => {
           </div>
           <div style={styles.card}>
             <div style={styles.cardHeader}>
-              <h3 style={styles.cardTitle}>📁 Dossier Physique</h3>
+              <h3 style={styles.cardTitle}>Dossier Physique</h3>
               <div style={styles.cardCount}>{dossier ? 1 : 0}</div>
             </div>
             <div style={styles.cardBody}>
