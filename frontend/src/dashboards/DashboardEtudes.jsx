@@ -12,6 +12,9 @@ function DashboardAdminEtudiant({ onLogout }) {
   const [pageDemandes, setPageDemandes] = useState(1);
   const [pageDossiers, setPageDossiers] = useState(1);
   const [selectedDossier, setSelectedDossier] = useState(null); 
+  const [filterStatut, setFilterStatut] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState('all');
   const itemsPerPage = 5;
 
   const fetchDemandes = async () => {
@@ -59,6 +62,7 @@ function DashboardAdminEtudiant({ onLogout }) {
       setDossiersPhysiques(oldDossiers =>
         oldDossiers.map(item => (item.id === id ? { ...item, statut } : item))
       );
+      setPageDemandes(1);
     } catch (err) {
       console.error('Erreur mise à jour statut', err);
       setMessage(' Erreur lors de la mise à jour du statut');
@@ -78,7 +82,6 @@ function DashboardAdminEtudiant({ onLogout }) {
       
       if (res.data.success) {
         setMessage(' Vérification IA terminée');
-        // Recharger les données pour afficher les nouveaux résultats
         fetchDossiersPhysiques();
       } else {
         setMessage(' Erreur lors de la vérification IA');
@@ -136,59 +139,62 @@ function DashboardAdminEtudiant({ onLogout }) {
     </div>
   );
 
-  // Fonction pour afficher les résultats de l'analyse IA
-  const renderAIVerification = (doc) => {
-    if (!doc.ai_verification) return null;
+  // Nouvelle fonction pour afficher un résumé court de la vérification IA
+  const renderAIVerificationSummary = (doc) => {
+    if (!doc.ai_verification) {
+      return (
+        <div style={{ textAlign: 'center', color: '#999', fontStyle: 'italic' }}>
+          Non vérifié
+        </div>
+      );
+    }
     
     try {
       const aiData = JSON.parse(doc.ai_verification);
+      const totalDocs = Object.keys(aiData).length;
+      const validDocs = Object.values(aiData).filter(result => result.isValid).length;
+      
       return (
-        <div style={{ marginTop: '10px', padding: '10px', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
-          <h4 style={{ margin: '0 0 10px 0', fontSize: '14px' }}>Vérification IA:</h4>
-          {Object.entries(aiData).map(([docType, result]) => (
-            <div key={docType} style={{ 
-              marginBottom: '8px', 
-              padding: '5px', 
-              backgroundColor: result.isValid ? '#e8f5e9' : '#ffebee',
-              borderRadius: '3px'
-            }}>
-              <strong>{docType}:</strong> {result.isValid ? ' Valide' : ' Problèmes détectés'}
-              {result.issues && result.issues.length > 0 && (
-                <ul style={{ margin: '5px 0', paddingLeft: '15px' }}>
-                  {result.issues.map((issue, idx) => (
-                    <li key={idx}>{issue}</li>
-                  ))}
-                </ul>
-              )}
-              {result.confidence > 0 && (
-                <div>Confiance OCR: {result.confidence.toFixed(1)}%</div>
-              )}
-            </div>
-          ))}
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ 
+            display: 'inline-block',
+            padding: '4px 8px',
+            borderRadius: '12px',
+            backgroundColor: validDocs === totalDocs ? '#e8f5e9' : '#ffebee',
+            color: validDocs === totalDocs ? '#2e7d32' : '#c62828',
+            fontSize: '12px',
+            fontWeight: 'bold',
+            marginBottom: '5px'
+          }}>
+            {validDocs}/{totalDocs} documents valides
+          </div>
+          <br />
           <button 
             onClick={() => setSelectedDossier(doc)}
             style={{ 
-              marginTop: '10px', 
-              padding: '5px 10px', 
+              padding: '4px 8px', 
               backgroundColor: '#2196f3', 
               color: 'white', 
               border: 'none', 
               borderRadius: '4px', 
               cursor: 'pointer',
-              fontSize: '12px'
+              fontSize: '11px'
             }}
           >
-            Voir détails complets
+            Voir détails
           </button>
         </div>
       );
     } catch (e) {
       console.error('Erreur parsing AI verification', e);
-      return null;
+      return (
+        <div style={{ textAlign: 'center', color: '#f44336', fontSize: '12px' }}>
+          Erreur d'analyse
+        </div>
+      );
     }
   };
 
-  // Fonction pour afficher les boutons d'action avec suggestion IA
   const renderAIActionButtons = (doc) => {
     if (doc.statut?.toLowerCase().trim() !== 'en_attente') return null;
     
@@ -269,11 +275,39 @@ function DashboardAdminEtudiant({ onLogout }) {
     return statut;
   };
 
+  // Get unique attestation types from demandes
+  const getAttestationTypes = () => {
+    const types = [...new Set(demandes.map(d => d.title).filter(Boolean))];
+    return types;
+  };
+
+  // Filter demandes by statut, type, and search term
+  const filteredDemandes = demandes.filter(d => {
+    const matchesStatut = filterStatut === 'all' || (d.statut?.toLowerCase() || '') === filterStatut.toLowerCase();
+    const matchesType = filterType === 'all' || d.title === filterType;
+    const matchesSearch = searchTerm === '' || 
+      (d.user_name && d.user_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (d.user_email && d.user_email.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    return matchesStatut && matchesType && matchesSearch;
+  });
+
+  // Sort demandes so "en_attente" (not validated) go on top
+  const sortedDemandes = [...filteredDemandes].sort((a, b) => {
+    if ((a.statut?.toLowerCase() || '') === 'en_attente' && (b.statut?.toLowerCase() || '') !== 'en_attente') {
+      return -1;
+    }
+    if ((a.statut?.toLowerCase() || '') !== 'en_attente' && (b.statut?.toLowerCase() || '') === 'en_attente') {
+      return 1;
+    }
+    return 0;
+  });
+
   // Pagination for demandes
   const indexLastDemande = pageDemandes * itemsPerPage;
   const indexFirstDemande = indexLastDemande - itemsPerPage;
-  const currentDemandes = demandes.slice(indexFirstDemande, indexLastDemande);
-  const totalPagesDemandes = Math.ceil(demandes.length / itemsPerPage);
+  const currentDemandes = sortedDemandes.slice(indexFirstDemande, indexLastDemande);
+  const totalPagesDemandes = Math.ceil(sortedDemandes.length / itemsPerPage);
 
   // Pagination for dossiers
   const indexLastDossier = pageDossiers * itemsPerPage;
@@ -304,67 +338,134 @@ function DashboardAdminEtudiant({ onLogout }) {
     cursor: 'not-allowed',
   };
 
-  // Modale pour afficher les détails de l'analyse IA
   const AIDetailsModal = ({ dossier, onClose }) => {
-    if (!dossier || !dossier.ai_verification) return null;
-    
-    const aiData = JSON.parse(dossier.ai_verification);
+    if (!dossier) return null;
     
     return (
       <div style={styles.modalOverlay} onClick={onClose}>
         <div style={styles.modalContent} onClick={e => e.stopPropagation()}>
           <div style={styles.modalHeader}>
-            <h3>Détails de l'analyse IA</h3>
+            <h3>Détails de la vérification IA</h3>
             <button onClick={onClose} style={styles.closeButton}>×</button>
           </div>
           <div style={styles.modalBody}>
-            <p><strong>Étudiant:</strong> {dossier.user_name}</p>
-            <p><strong>Niveau d'étude:</strong> {dossier.niveau_etude}</p>
-            <p><strong>Suggestion IA:</strong> 
-              <span style={{ 
-                color: dossier.ai_suggestion === 'suggestion_validation' ? '#4caf50' : '#f44336',
-                fontWeight: 'bold'
-              }}>
-                {dossier.ai_suggestion === 'suggestion_validation' ? 'Validation recommandée' : 'Rejet recommandé'}
-              </span>
-            </p>
-            
-            <h4>Analyse détaillée par document:</h4>
-            {Object.entries(aiData).map(([docType, result]) => (
-              <div key={docType} style={{ 
-                marginBottom: '15px', 
-                padding: '10px', 
-                backgroundColor: result.isValid ? '#e8f5e9' : '#ffebee',
-                borderRadius: '5px'
-              }}>
-                <h5 style={{ margin: '0 0 10px 0' }}>{docType.toUpperCase()}</h5>
-                <p><strong>Statut:</strong> {result.isValid ? ' Valide' : ' Invalide'}</p>
-                {result.confidence > 0 && (
-                  <p><strong>Confiance OCR:</strong> {result.confidence.toFixed(1)}%</p>
-                )}
-                {result.issues && result.issues.length > 0 && (
-                  <div>
-                    <strong>Problèmes détectés:</strong>
-                    <ul>
-                      {result.issues.map((issue, idx) => (
-                        <li key={idx}>{issue}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {result.details && (
-                  <div>
-                    <strong>Détails techniques:</strong>
-                    <pre style={{ fontSize: '12px', overflow: 'auto' }}>
-                      {JSON.stringify(result.details, null, 2)}
-                    </pre>
-                  </div>
-                )}
+            <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f5f5f5', borderRadius: '8px' }}>
+              <p><strong>Étudiant:</strong> {dossier.user_name || 'N/A'}</p>
+              <p><strong>Email:</strong> {dossier.user_email || 'N/A'}</p>
+              <p><strong>Niveau d'étude:</strong> {dossier.niveau_etude || '-'}</p>
+              <p><strong>Date de demande:</strong> {formatDate(dossier.date_demande)}</p>
+              <p><strong>Statut:</strong> {renderStatut(dossier.statut)}</p>
+              <p><strong>Suggestion IA:</strong> 
+                <span style={{ 
+                  color: dossier.ai_suggestion === 'suggestion_validation' ? '#4caf50' : '#f44336',
+                  fontWeight: 'bold',
+                  marginLeft: '5px'
+                }}>
+                  {dossier.ai_suggestion === 'suggestion_validation' ? 'Validation recommandée' : 
+                   dossier.ai_suggestion === 'suggestion_rejet' ? 'Rejet recommandé' : 'Non disponible'}
+                </span>
+              </p>
+            </div>
+
+            {dossier.ai_verification ? (
+              <div>
+                <h4 style={{ marginBottom: '15px', color: '#333' }}>Analyse détaillée par document:</h4>
+                {(() => {
+                  try {
+                    const aiData = JSON.parse(dossier.ai_verification);
+                    return Object.entries(aiData).map(([docType, result]) => (
+                      <div key={docType} style={{ 
+                        marginBottom: '15px', 
+                        padding: '15px', 
+                        backgroundColor: result.isValid ? '#e8f5e9' : '#ffebee',
+                        borderRadius: '8px',
+                        borderLeft: `4px solid ${result.isValid ? '#4caf50' : '#f44336'}`
+                      }}>
+                        <h5 style={{ margin: '0 0 10px 0', color: result.isValid ? '#2e7d32' : '#c62828' }}>
+                          {docType.toUpperCase()} - {result.isValid ? '✓ Valide' : '✗ Problèmes détectés'}
+                        </h5>
+                        {result.confidence > 0 && (
+                          <p style={{ margin: '5px 0' }}>
+                            <strong>Confiance OCR:</strong> {result.confidence.toFixed(1)}%
+                          </p>
+                        )}
+                        {result.issues && result.issues.length > 0 && (
+                          <div>
+                            <strong>Problèmes détectés:</strong>
+                            <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+                              {result.issues.map((issue, idx) => (
+                                <li key={idx} style={{ marginBottom: '3px' }}>{issue}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {result.details && Object.keys(result.details).length > 0 && (
+                          <div>
+                            <strong>Détails techniques:</strong>
+                            <pre style={{ 
+                              fontSize: '12px', 
+                              overflow: 'auto', 
+                              backgroundColor: 'rgba(0,0,0,0.05)',
+                              padding: '10px',
+                              borderRadius: '4px',
+                              marginTop: '8px'
+                            }}>
+                              {JSON.stringify(result.details, null, 2)}
+                            </pre>
+                          </div>
+                        )}
+                        {(!result.issues || result.issues.length === 0) && result.isValid && (
+                          <p style={{ color: '#2e7d32', fontStyle: 'italic' }}>
+                            Aucun problème détecté - Document valide
+                          </p>
+                        )}
+                      </div>
+                    ));
+                  } catch (e) {
+                    return (
+                      <div style={{ 
+                        padding: '15px', 
+                        backgroundColor: '#ffebee',
+                        borderRadius: '8px',
+                        color: '#c62828',
+                        textAlign: 'center'
+                      }}>
+                        Erreur lors de l'analyse des données de vérification IA
+                      </div>
+                    );
+                  }
+                })()}
               </div>
-            ))}
+            ) : (
+              <div style={{ 
+                padding: '20px', 
+                backgroundColor: '#fff3e0',
+                borderRadius: '8px',
+                textAlign: 'center',
+                color: '#e65100'
+              }}>
+                <p>Aucune vérification IA disponible pour ce dossier.</p>
+                <button
+                  onClick={() => handleAIVerification(dossier.id)}
+                  style={{ 
+                    backgroundColor: '#2196f3', 
+                    color: 'white', 
+                    border: 'none', 
+                    padding: '8px 16px', 
+                    borderRadius: 6, 
+                    cursor: 'pointer',
+                    marginTop: '10px'
+                  }}
+                >
+                  Lancer une vérification IA
+                </button>
+              </div>
+            )}
           </div>
           <div style={styles.modalFooter}>
-            <button onClick={onClose} style={styles.closeButton}>Fermer</button>
+            <button onClick={onClose} style={styles.closeButton}>
+              Fermer
+            </button>
           </div>
         </div>
       </div>
@@ -373,7 +474,6 @@ function DashboardAdminEtudiant({ onLogout }) {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f5f5f5', fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif" }}>
-      {/* Header identique à DashboardAdmin */}
       <header
         style={{
           background: "linear-gradient(135deg, rgb(216, 95, 95) 0%, #b71c1c 100%)",
@@ -393,7 +493,6 @@ function DashboardAdminEtudiant({ onLogout }) {
             alignItems: "center",
           }}
         >
-          {/* Logo + Welcome message */}
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             <img
               src="/logo.png"
@@ -412,8 +511,6 @@ function DashboardAdminEtudiant({ onLogout }) {
               </span>
             </h2>
           </div>
-
-          {/* Logout button */}
           <button
             onClick={onLogout}
             style={{
@@ -527,14 +624,138 @@ function DashboardAdminEtudiant({ onLogout }) {
                   fontWeight: 'bold',
                 }}
               >
-                {demandes.length}
+                {filteredDemandes.length}
               </div>
             </header>
+
+            {/* Search and Filter Section */}
+            <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f9f9f9', borderRadius: '8px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                {/* Search Input */}
+                <div>
+                  <label style={{ fontWeight: '600', marginBottom: '5px', display: 'block' }}>
+                    Recherche par étudiant:
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Rechercher par nom ou email de l'étudiant..."
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      setPageDemandes(1);
+                    }}
+                    style={{
+                      width: '100%',
+                      maxWidth: '400px',
+                      padding: '8px 12px',
+                      border: '1px solid #ddd',
+                      borderRadius: '4px',
+                      fontSize: '14px'
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px' }}>
+                  {/* Status Filter */}
+                  <div>
+                    <label style={{ fontWeight: '600', marginBottom: '8px', display: 'block' }}>
+                      Filtrer par statut:
+                    </label>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+                        <input
+                          type="radio"
+                          value="all"
+                          checked={filterStatut === 'all'}
+                          onChange={() => {
+                            setFilterStatut('all');
+                            setPageDemandes(1);
+                          }}
+                        />
+                        Tous
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+                        <input
+                          type="radio"
+                          value="en_attente"
+                          checked={filterStatut === 'en_attente'}
+                          onChange={() => {
+                            setFilterStatut('en_attente');
+                            setPageDemandes(1);
+                          }}
+                        />
+                        En attente
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+                        <input
+                          type="radio"
+                          value="validée"
+                          checked={filterStatut === 'validée'}
+                          onChange={() => {
+                            setFilterStatut('validée');
+                            setPageDemandes(1);
+                          }}
+                        />
+                        Accepté
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+                        <input
+                          type="radio"
+                          value="refusée"
+                          checked={filterStatut === 'refusée'}
+                          onChange={() => {
+                            setFilterStatut('refusée');
+                            setPageDemandes(1);
+                          }}
+                        />
+                        Refusé
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Type Filter */}
+                  <div>
+                    <label style={{ fontWeight: '600', marginBottom: '8px', display: 'block' }}>
+                      Filtrer par type d'attestation:
+                    </label>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+                        <input
+                          type="radio"
+                          value="all"
+                          checked={filterType === 'all'}
+                          onChange={() => {
+                            setFilterType('all');
+                            setPageDemandes(1);
+                          }}
+                        />
+                        Tous les types
+                      </label>
+                      {getAttestationTypes().map(type => (
+                        <label key={type} style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+                          <input
+                            type="radio"
+                            value={type}
+                            checked={filterType === type}
+                            onChange={() => {
+                              setFilterType(type);
+                              setPageDemandes(1);
+                            }}
+                          />
+                          {type}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div style={{ overflowX: 'auto' }}>
               {loadingDemandes ? (
                 <p>Chargement...</p>
               ) : currentDemandes.length === 0 ? (
-                <p style={{ fontStyle: 'italic', textAlign: 'center' }}>Aucune demande d'attestation pour le moment.</p>
+                <p style={{ fontStyle: 'italic', textAlign: 'center' }}>Aucune demande d'attestation correspondant aux critères de recherche.</p>
               ) : (
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
@@ -661,10 +882,9 @@ function DashboardAdminEtudiant({ onLogout }) {
                         </td>
                         <td style={{ padding: 12 }}>{renderFiles(d)}</td>
                         <td style={{ padding: 12 }}>
-                          {renderAIVerification(d)}
+                          {renderAIVerificationSummary(d)}
                         </td>
                         <td style={{ padding: 12 }}>
-                          {/* Bouton de vérification IA manuelle */}
                           <button
                             onClick={() => handleAIVerification(d.id)}
                             style={{ 
@@ -703,7 +923,6 @@ function DashboardAdminEtudiant({ onLogout }) {
         )}
       </main>
 
-      {/* Modale pour afficher les détails de l'analyse IA */}
       {selectedDossier && (
         <AIDetailsModal 
           dossier={selectedDossier} 
@@ -743,7 +962,7 @@ const styles = {
     maxWidth: '90%',
     maxHeight: '90%',
     overflow: 'auto',
-    width: '600px',
+    width: '800px',
   },
   modalHeader: {
     display: 'flex',
